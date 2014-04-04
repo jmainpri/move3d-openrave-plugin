@@ -4,7 +4,6 @@ move3d-openrave-plugin
 Dependencies:
 
 * Move3D : http://www.openrobots.org/wiki/move3d
-
 * OpenRave : http://openrave.org/docs/latest_stable/
 
 
