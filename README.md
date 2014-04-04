@@ -1,11 +1,11 @@
 move3d-openrave-plugin
 ==============
 
-Depends on move3d and OpenRave
+Dependencies:
 
-http://www.openrobots.org/wiki/move3d
+* Move3D : http://www.openrobots.org/wiki/move3d
 
-http://openrave.org/docs/latest_stable/
+* OpenRave : http://openrave.org/docs/latest_stable/
 
 
 Install:
@@ -15,6 +15,10 @@ Install:
     cd build
     cmake ..
     make install
+    
+Set up your enviroment:
+
+    export OPENRAVE_PLUGINS=$HOME/move3d-openrave-plugin/plugins:$OPENRAVE_PLUGINS
     
 Run:
     
