@@ -505,8 +505,7 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius )
 
     graph.push_back( fig );
 
-    cout << "Add sphere : " << x << " , " << y << " , " << z << endl;
-
+    // cout << "Add sphere : " << x << " , " << y << " , " << z << endl;
     // g3d_draw_solid_sphere( x, y, z, radius, 10 );
 }
 
@@ -538,7 +537,7 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
 
     graph.push_back( fig );
 
-    cout << "Add line : " << x1 << " , " << y1 << " , " << z1 << endl;
+    // cout << "Add line : " << x1 << " , " << y1 << " , " << z1 << endl;
     // g3d_drawOneLine( x1, y1, z1, x2, y2, z2, color, color_vect );
 }
 

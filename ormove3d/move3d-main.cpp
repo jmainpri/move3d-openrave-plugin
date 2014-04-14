@@ -115,6 +115,32 @@ bool Move3dProblem::RunRRT()
     return true;
 }
 
+bool Move3dProblem::RunStomp()
+{
+    cout << "------------------------" << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+
+    cout << "robot name : " << robot->getName() << endl;
+    cout << "nb dofs : " << robot->getNumberOfDofs() << endl;
+
+    Move3D::confPtr_t q_init = robot->getNewConfig();
+    Move3D::confPtr_t q_goal = robot->getNewConfig();
+
+    (*q_init)[0] = 20.0;
+    (*q_init)[1] = 50.0;
+
+    (*q_goal)[0] = 200.0;
+    (*q_goal)[1] = 700.0;
+
+    or_runDiffusion( q_init, q_goal );
+
+    RAVELOG_INFO("End RunRRT normally\n");
+
+    return true;
+}
+
 bool Move3dProblem::SendCommand( std::ostream& sout, std::istream& sinput )
 {
     ProblemInstance::SendCommand( sout, sinput );

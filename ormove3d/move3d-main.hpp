@@ -23,6 +23,7 @@ public:
     bool InitMove3dEnv();
     bool LoadConfigFile( std::istream& sinput );
     bool RunRRT();
+    bool RunStomp();
 
 private:
     std::string strRobotName_; ///< name of the active robot

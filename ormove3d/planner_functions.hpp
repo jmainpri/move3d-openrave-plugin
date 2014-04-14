@@ -3,6 +3,7 @@
 
 #include <libmove3d/planners/API/ConfigSpace/configuration.hpp>
 
-void or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  );
+bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  );
+bool or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  );
 
 #endif // PLANNER_FUNCTIONS_HPP

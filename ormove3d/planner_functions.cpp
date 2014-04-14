@@ -16,6 +16,8 @@
 #include <libmove3d/planners/planner/Diffusion/Variants/Star-RRT.hpp>
 #include <libmove3d/planners/planner/TrajectoryOptim/trajectoryOptim.hpp>
 #include <libmove3d/planners/planner/TrajectoryOptim/Classic/costOptimization.hpp>
+#include <libmove3d/planners/planner/TrajectoryOptim/trajectoryOptim.hpp>
+#include <libmove3d/planners/planner/TrajectoryOptim/Stomp/run_parallel_stomp.hpp>
 
 //#include <libmove3d/planners/planner/plannerFunctions.hpp>
 
@@ -358,11 +360,16 @@ int move3d_run_rrt(Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confP
 /**
  * Run Diffusion
  */
-void or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
+bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
 {
     cout << "Run Diffusion" << endl;
 
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    if( robot == NULL )
+    {
+        cout << "robot not defined" << endl;
+        return false;
+    }
 //    try
     {
         p3d_SetStopValue(FALSE);
@@ -411,4 +418,49 @@ void or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
 //        cerr << "Exeption in run qt_runDiffusion" << endl;
 //        ENV.setBool(Env::isRunning,false);
 //    }
+
+    return true;
+}
+
+bool or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
+{
+    cout << "Run Stomp" << endl;
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    if( robot == NULL )
+    {
+        cout << "robot not defined" << endl;
+        return false;
+    }
+
+    std::vector<Robot*> robots;
+    robots.push_back( robot );
+
+    // TODO see to remove this
+    traj_optim_initScenario();
+
+    std::vector<int> planner_joints = traj_optim_get_planner_joints();
+    const CollisionSpace* coll_space = traj_optim_get_collision_space();
+    std::vector<CollisionPoint> collision_points = traj_optim_get_collision_points();
+
+    stomp_motion_planner::stompRun pool( coll_space, planner_joints, collision_points );
+    pool.setPool( robots );
+    // Uncomment for parallel stomps
+    // pool.setRobotPool( 0, robots );
+
+    Move3D::Trajectory T( robot );
+
+//    if( init_stomp_.getNbOfViaPoints() == 0 )
+    {
+        T.push_back( q_init );
+        T.push_back( q_goal );
+    }
+//    else{
+//       T = init_stomp_;
+//    }
+
+    pool.run( 0, T );
+
+//    all_traj_ = pool.getContext(0)->getStompOptimizer()->getAllTrajs();
+//    best_traj_.push_back( pool.getBestTrajectory( 0 ) );
 }
