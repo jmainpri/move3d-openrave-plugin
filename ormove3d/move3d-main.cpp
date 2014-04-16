@@ -4,7 +4,7 @@
 #include "openrave_move3d_api.hpp"
 #include "planner_functions.hpp"
 
-// openrave --loadplugin libplugincpp.so --module mymodule "my args"
+// gdb --args openrave --loadplugin libor-move3d.so --module move3d "run_test"
 
 #include <libmove3d/planners/API/Device/robot.hpp>
 #include <libmove3d/planners/API/Device/joint.hpp>
@@ -39,6 +39,7 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("initmove3denv",boost::bind(&Move3dProblem::InitMove3dEnv,this),"returns true if ok");
     RegisterCommand("loadconfigfile",boost::bind(&Move3dProblem::LoadConfigFile,this,_2),"returns true if ok");
     RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this),"returns true if ok");
+    RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this),"returns true if ok");
 
     env_ = penv;
 }
@@ -65,6 +66,7 @@ bool Move3dProblem::InitMove3dEnv()
     move3d_set_or_api_functions_localpath();
     move3d_set_or_api_functions_robot();
     move3d_set_or_api_functions_joint();
+    move3d_set_or_api_collision_space();
     move3d_set_or_api_functions_draw();
 
     init_all_draw_functions_dummy();
@@ -94,6 +96,8 @@ bool Move3dProblem::RunRRT()
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
+    move3d_draw_clear();
+
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
 
     cout << "robot name : " << robot->getName() << endl;
@@ -120,6 +124,15 @@ bool Move3dProblem::RunStomp()
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
+    std::string coll_checker_name = "VoxelColChecker" ;
+
+    CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
+    if( !pchecker ) {
+        RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
+        return false;
+    }
+     GetEnv()->SetCollisionChecker( pchecker );
+
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
 
     cout << "robot name : " << robot->getName() << endl;
@@ -134,9 +147,9 @@ bool Move3dProblem::RunStomp()
     (*q_goal)[0] = 200.0;
     (*q_goal)[1] = 700.0;
 
-    or_runDiffusion( q_init, q_goal );
+    or_runStomp( q_init, q_goal );
 
-    RAVELOG_INFO("End RunRRT normally\n");
+    RAVELOG_INFO("End Stomp normally\n");
 
     return true;
 }
@@ -154,12 +167,15 @@ int Move3dProblem::main(const std::string& cmd)
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-//    std::string file( "../ormodels/stones.env.xml" );
-//    env_->Load( file );
-//    InitMove3dEnv();
-//    std::istringstream is( "/home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones" );
-//    LoadConfigFile( is );
-//    RunRRT();
+    if( cmd == "run_test" )
+    {
+        std::string file( "../ormodels/stones.env.xml" );
+        env_->Load( file );
+        InitMove3dEnv();
+        std::istringstream is( "/home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stomp_stones" );
+        LoadConfigFile( is );
+        RunStomp();
+    }
 
 //    const char* delim = " \r\n\t";
 //    string mycmd = cmd;

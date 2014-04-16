@@ -22,13 +22,15 @@ class TwoDPlanner():
         self.orEnv.Load( '../ormodels/stones.env.xml' )
 
         self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
-        self.orEnv.AddModule( self.prob, args='' )
-
-    def run( self ) :
+        self.orEnv.AddModule( self.prob, args='' )        
 
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
-        self.prob.SendCommand('RunRRT')    
+
+    def run( self ) :
+
+        with self.orEnv :
+            self.prob.SendCommand('RunRRT')    
 
         print "Press return to exit."
         sys.stdin.readline()
@@ -42,7 +44,10 @@ class TwoDPlanner():
         self.orEnv.GetViewer().SetCamera( T_cam )
 
 if __name__ == "__main__":
+
     print "START OPENRAVE"
     planner = TwoDPlanner()
     planner.SetCamera()
-    planner.run()
+
+    while True :
+        planner.run()

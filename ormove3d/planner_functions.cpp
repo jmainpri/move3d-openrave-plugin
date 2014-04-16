@@ -58,7 +58,7 @@ Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes, Graph* 
     cout << __PRETTY_FUNCTION__ << endl;
 
     Move3D::Trajectory* traj = NULL;
-    Robot* rob = graph->getRobot();
+    // Robot* rob = graph->getRobot();
 
     // If traj is found, extract it from the graph
     if (/*rrt->trajFound()*/ is_traj_found )
@@ -463,4 +463,6 @@ bool or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
 
 //    all_traj_ = pool.getContext(0)->getStompOptimizer()->getAllTrajs();
 //    best_traj_.push_back( pool.getBestTrajectory( 0 ) );
+
+    return true;
 }

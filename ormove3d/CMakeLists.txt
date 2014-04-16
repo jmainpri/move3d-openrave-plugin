@@ -11,7 +11,20 @@ endif()
 #  Debug          : w/ debug symbols, w/o optimization
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
+#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries# # 
+# Default mode is Debug
+
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE Debug CACHE STRING
+      "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
+ENDIF(NOT CMAKE_BUILD_TYPE)
+
+IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
+  ADD_DEFINITIONS(-g -Wall -Wno-unknown-pragmas -fstack-protector-all)
+ELSEIF(${CMAKE_BUILD_TYPE} MATCHES "Release")
+  ADD_DEFINITIONS(-O2 -Wall -Wno-unknown-pragmas)
+ENDIF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
 
 
 #set the default path for built executables to the "bin" directory

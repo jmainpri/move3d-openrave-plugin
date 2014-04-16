@@ -10,6 +10,8 @@
 #include <libmove3d/planners/API/Trajectory/trajectory.hpp>
 #include <libmove3d/planners/API/Graphic/drawModule.hpp>
 
+#include <libmove3d/planners/planner/TrajectoryOptim/Stomp/stompOptimizer.hpp>
+
 #define UNIX
 
 #include <libmove3d/include/P3d-pkg.h>
@@ -53,7 +55,9 @@ void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<R
     for( size_t i=0; i<or_robots.size(); i++ )
     {
         cout << "Add new Robot to Scene : " << or_robots[i]->GetName() << endl;
+
         robots.push_back( new Robot( or_robots[i].get() ) );
+        robots.back()->setUseLibmove3dStruct( false );
     }
 
     cout << "All robots have been added !!! " << endl;
@@ -143,7 +147,7 @@ confPtr_t move3d_robot_shoot( confPtr_t q, bool sample_passive )
     Robot* R = q->getRobot();
     // p3d_shoot( static_cast<p3d_rob*>(R->getP3dRobotStruct()), q->getConfigStruct(), sample_passive );
 
-    int njnt = R->getNumberOfJoints(), i, j, k;
+    size_t njnt = R->getNumberOfJoints(), i, j, k;
     double vmin, vmax;
 
     for( i=0; i<njnt; i++ )
@@ -280,11 +284,11 @@ Joint* move3d_robot_get_ith_active_joint( Robot* R,  unsigned int ithActiveDoF, 
     const std::vector<Joint*>& joints = R->getJoints();
     const std::vector<int>& indices = robot->GetActiveDOFIndices();
 
-    for(unsigned int i=0;i<joints.size();i++)
+    for(size_t i=0;i<joints.size();i++)
     {
         Joint* jntPt = joints[i];
 
-        for(int j=0; j<jntPt->getNumberOfDof(); j++)
+        for(size_t j=0; j<jntPt->getNumberOfDof(); j++)
         {
             int k = jntPt->getIndexOfFirstDof() + j;
 
@@ -367,11 +371,11 @@ Transform3d move3d_joint_get_matrix_pos( const Joint* J )
 
 void move3d_joint_shoot( Joint* J, Configuration& q, bool sample_passive )
 {
-    OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>(q.getRobot()->getRobotStruct());
+    OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>( J->getRobot()->getRobotStruct() );
 
     const std::vector<int>& indices = robot->GetActiveDOFIndices();
 
-    for(int j=0; j<J->getNumberOfDof(); j++)
+    for( size_t j=0; j<J->getNumberOfDof(); j++)
     {
         int k = J->getIndexOfFirstDof() + j;
 
@@ -403,7 +407,12 @@ void move3d_joint_set_joint_dof( const Joint* J, int ithDoF, double value )
 
 bool move3d_joint_is_joint_user( const Joint* J, int ithDoF )
 {
-    // return p3d_jnt_get_dof_is_user( J->getP3dJointStruct(), ithDoF );
+    OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>( J->getRobot()->getRobotStruct() );
+
+    // TODO see of that is ok
+    int k = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetDOFIndex() + ithDoF;
+    const std::vector<int>& indices = robot->GetActiveDOFIndices();
+    return std::find( indices.begin(), indices.end(), k ) != indices.end();
 }
 
 void move3d_joint_get_joint_bounds( const Joint* J, int ithDoF, double& vmin, double& vmax )
@@ -478,16 +487,78 @@ double move3d_joint_is_joint_dof_circular( const Joint* J, int ithDoF )
 // ****************************************************************************************************
 // ****************************************************************************************************
 //
+// COLLISION SPACE
+//
+// ****************************************************************************************************
+// ****************************************************************************************************
+
+int move3d_get_nb_collision_points()
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    std::vector<OpenRAVE::RobotBasePtr> robots;
+
+    or_env_->GetRobots( robots );
+
+    if( robots.empty() ) {
+        RAVELOG_ERROR( "No robots in environment \n" );
+        return 0;
+    }
+
+    OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
+    or_env_->CheckCollision( robots[0], report );
+
+    return report->contacts.size();
+}
+
+bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd& collision_point_potential, std::vector< std::vector<Eigen::Vector3d> >& collision_point_pos )
+{
+    // cout << __PRETTY_FUNCTION__ << endl;
+
+    OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
+    OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
+
+    bool in_collision = or_env_->CheckCollision( robot, report );
+
+    Eigen::Vector3d p;
+
+    // calculate the position of every collision point
+    for (size_t j=0; j<report->contacts.size(); j++)
+    {
+        collision_point_potential(i,j) = report->contacts[j].depth;
+
+        p(0) = report->contacts[j].pos.x;
+        p(1) = report->contacts[j].pos.y;
+        p(2) = report->contacts[j].pos.z;
+
+        collision_point_pos[i][j] = p;
+
+        // if ( colliding )
+        // {
+            // This is the function that discards joints too close to the base
+            // if( planning_group_->collision_points_[j].getSegmentNumber() > 1 )
+            //{
+                // in_collision = true;
+            //}
+        // }
+    }
+
+    return in_collision;
+}
+
+// ****************************************************************************************************
+// ****************************************************************************************************
+//
 // DAW
 //
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-std::vector< boost::shared_ptr<void> > graph;
+std::vector< boost::shared_ptr<void> > graphptr;
 
 void move3d_draw_clear()
 {
-    graph.clear();
+    graphptr.clear();
 }
 
 void move3d_draw_sphere_fct( double x, double y, double z, double radius )
@@ -503,7 +574,7 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius )
 
     OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
 
-    graph.push_back( fig );
+    graphptr.push_back( fig );
 
     // cout << "Add sphere : " << x << " , " << y << " , " << z << endl;
     // g3d_draw_solid_sphere( x, y, z, radius, 10 );
@@ -535,7 +606,7 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
 
     delete ppoints;
 
-    graph.push_back( fig );
+    graphptr.push_back( fig );
 
     // cout << "Add line : " << x1 << " , " << y1 << " , " << z1 << endl;
     // g3d_drawOneLine( x1, y1, z1, x2, y2, z2, color, color_vect );
@@ -610,9 +681,17 @@ void move3d_set_or_api_functions_joint()
     move3d_set_fct_joint_joint_dist( boost::bind( move3d_joint_get_dist, _1 ) );
 }
 
+void move3d_set_or_api_collision_space()
+{
+    move3d_set_api_functions_collision_space( false );
+    move3d_set_fct_get_nb_collision_points( boost::bind( move3d_get_nb_collision_points ) );
+    move3d_set_fct_get_config_collision_cost( boost::bind( move3d_get_config_collision_cost, _1, _2, _3, _4 ) ) ;
+}
+
 void move3d_set_or_api_functions_draw()
 {
     move3d_set_fct_draw_sphere( boost::bind( move3d_draw_sphere_fct, _1, _2, _3, _4 ) );
     move3d_set_fct_draw_one_line( boost::bind( move3d_draw_one_line_fct, _1, _2, _3, _4, _5, _6, _7, _8 ) );
+    move3d_set_fct_draw_clear_handles( boost::bind( move3d_draw_clear ) );
 }
 

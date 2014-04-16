@@ -24,19 +24,21 @@ class TwoDPlanner():
         self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
         self.orEnv.AddModule( self.prob, args='' )
 
-        self.collisionChecker = RaveCreateCollisionChecker( self.orEnv,'VoxelColChecker')
-        self.orEnv.SetCollisionChecker( self.collisionChecker ) 
-
         self.drawingHandles = []
         self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
 
+        self.prob.SendCommand('InitMove3dEnv')
+        self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stomp_stones')
+
+        self.collChecker = self.orEnv.GetCollisionChecker()
+
     def run( self ) :
 
-        self.prob.SendCommand('InitMove3dEnv')
-        self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
-        self.prob.SendCommand('RunRRT')   
+        self.prob.SendCommand('RunStomp')   
 
-        print "Press return to exit."
+        self.orEnv.SetCollisionChecker( self.collChecker )
+
+        print "Press return to run"
         sys.stdin.readline()
 
     def SetCamera(self):
@@ -48,7 +50,13 @@ class TwoDPlanner():
         self.orEnv.GetViewer().SetCamera( T_cam )
 
 if __name__ == "__main__":
+
     print "START OPENRAVE"
     planner = TwoDPlanner()
-    planner.SetCamera()
-    planner.run()
+    planner.SetCamera() 
+
+    # print "Press return to run"
+    # sys.stdin.readline()
+
+    while True :
+        planner.run()
