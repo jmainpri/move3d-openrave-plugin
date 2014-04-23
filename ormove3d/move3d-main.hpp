@@ -20,14 +20,19 @@ public:
 
     bool NumBodies( std::ostream& sout, std::istream& sinput );
 
-    bool InitMove3dEnv();
-    bool LoadConfigFile( std::istream& sinput );
-    bool RunRRT();
-    bool RunStomp();
 
 private:
-    std::string strRobotName_; ///< name of the active robot
-    RobotBasePtr robot_;
+
+    bool InitMove3dEnv();
+    bool LoadConfigFile( std::istream& sinput );
+    bool SetParameter( std::istream& sinput );
+    bool GetOptions( std::ostream& sout, std::istream& sinput );
+    bool RunRRT( std::ostream& sout, std::istream& sinput );
+    bool RunStomp( std::ostream& sout, std::istream& sinput );
+
+    std::vector<dReal> goals_;
+//    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
+
     EnvironmentBasePtr env_;
 };
 

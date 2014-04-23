@@ -11,7 +11,6 @@ from openravepy import *
 from numpy import *
 import pdb
 import sys
-from misc_transform import *
 
 class TwoDPlanner():
 
@@ -22,23 +21,21 @@ class TwoDPlanner():
         self.orEnv.GetViewer().EnvironmentSync()
         self.orEnv.Load( '../ormodels/stones.env.xml' )
 
-        self.robot = self.orEnv.GetRobots()[0]
-
         self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
-        self.orEnv.AddModule( self.prob, args='' )        
+        self.orEnv.AddModule( self.prob, args='' )
+
+        self.collisionChecker = RaveCreateCollisionChecker( self.orEnv,'VoxelColChecker')
+        self.orEnv.SetCollisionChecker( self.collisionChecker ) 
+
+        self.drawingHandles = []
+        self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
+
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
 
-        
     def run( self ) :
 
-        q_init = [20,50]
-        q_goal = [200,700]
-
-        self.robot.SetDOFValues( array(q_init) )
-
-        with self.orEnv :
-            self.prob.SendCommand('RunRRT jointgoals ' + SerializeConfig(q_goal) )  
+        self.prob.SendCommand('RunRRT')   
 
         print "Press return to exit."
         sys.stdin.readline()

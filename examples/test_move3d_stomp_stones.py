@@ -12,6 +12,8 @@ from numpy import *
 import pdb
 import sys
 
+from misc_transform import *
+
 class TwoDPlanner():
 
     def __init__( self ):
@@ -20,6 +22,7 @@ class TwoDPlanner():
         self.orEnv.SetViewer('qtcoin')
         self.orEnv.GetViewer().EnvironmentSync()
         self.orEnv.Load( '../ormodels/stones.env.xml' )
+        self.orEnv.SetDebugLevel(DebugLevel.Verbose)
 
         self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
         self.orEnv.AddModule( self.prob, args='' )
@@ -27,26 +30,35 @@ class TwoDPlanner():
         self.drawingHandles = []
         self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
 
+        self.robot = self.orEnv.GetRobots()[0]
+
         self.prob.SendCommand('InitMove3dEnv')
-        self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stomp_stones')
+        self.prob.SendCommand('LoadConfigFile ../parameter_files/stomp_stones')
 
         self.collChecker = self.orEnv.GetCollisionChecker()
 
     def run( self ) :
 
-        self.prob.SendCommand('RunStomp')   
+        q_init = [20,50]
+        q_goal = [200,700]
+
+        self.robot.SetDOFValues( array(q_init) )
+        self.prob.SendCommand('RunStomp jointgoals ' + SerializeConfig(q_goal) )
 
         self.orEnv.SetCollisionChecker( self.collChecker )
 
         print "Press return to run"
         sys.stdin.readline()
 
+        print self.orEnv.GetViewer().GetCameraTransform()
+
     def SetCamera(self):
-        T_cam =   ([[  2.44603788e-01,   7.28857907e-01,  -6.39480366e-01, 7.34846558e+02], \
-                    [  9.60859728e-01,  -2.70673759e-01,   5.90279568e-02, 3.46425568e+02], \
-                    [ -1.30067561e-01,  -6.28889392e-01,  -7.66538037e-01, 6.77975464e+02], \
-                    [  0.00000000e+00,   0.00000000e+00,   0.00000000e+00, 1.00000000e+00]])
-        # self.orEnv.GetViewer().GetCameraTransform()
+
+        T_cam = ([[  2.98714915e-01,   9.44717010e-01,  -1.35200486e-01,   2.94798950e+02],
+                  [  9.53920362e-01,  -2.99784043e-01,   1.28635264e-02,   3.90384369e+02],
+                  [ -2.83785562e-02,  -1.32813024e-01,  -9.90734757e-01,   7.22618408e+02],
+                  [  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,  1.00000000e+00]])
+ 
         self.orEnv.GetViewer().SetCamera( T_cam )
 
 if __name__ == "__main__":

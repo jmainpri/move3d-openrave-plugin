@@ -19,6 +19,7 @@
 #include <libmove3d/planners/planner/TrajectoryOptim/trajectoryOptim.hpp>
 #include <libmove3d/planners/planner/TrajectoryOptim/Stomp/run_parallel_stomp.hpp>
 
+#include <libmove3d/planners/collision_space/collision_space_factory.hpp>
 //#include <libmove3d/planners/planner/plannerFunctions.hpp>
 
 #define UNIX

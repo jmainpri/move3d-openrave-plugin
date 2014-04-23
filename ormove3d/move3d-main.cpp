@@ -4,8 +4,6 @@
 #include "openrave_move3d_api.hpp"
 #include "planner_functions.hpp"
 
-// gdb --args openrave --loadplugin libor-move3d.so --module move3d "run_test"
-
 #include <libmove3d/planners/API/Device/robot.hpp>
 #include <libmove3d/planners/API/Device/joint.hpp>
 #include <libmove3d/planners/API/project.hpp>
@@ -26,7 +24,8 @@ class MainWindow;
 MainWindow* global_w(NULL);
 //-----------------------------------------------
 
-using namespace std;
+using std::cout;
+using std::endl;
 
 #define FORIT(it, v) for(it = (v).begin(); it != (v).end(); (it)++)
 
@@ -38,8 +37,9 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
 
     RegisterCommand("initmove3denv",boost::bind(&Move3dProblem::InitMove3dEnv,this),"returns true if ok");
     RegisterCommand("loadconfigfile",boost::bind(&Move3dProblem::LoadConfigFile,this,_2),"returns true if ok");
-    RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this),"returns true if ok");
-    RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this),"returns true if ok");
+    RegisterCommand("setparameter",boost::bind(&Move3dProblem::SetParameter,this,_2),"returns true if ok");
+    RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this,_1,_2),"returns true if ok");
+    RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this,_1,_2),"returns true if ok");
 
     env_ = penv;
 }
@@ -72,7 +72,7 @@ bool Move3dProblem::InitMove3dEnv()
     init_all_draw_functions_dummy();
 
     Move3D::global_Project = new Move3D::Project(new Move3D::Scene( env_.get() ));
-//    return ( Move3D::global_Project != NULL );
+    //    return ( Move3D::global_Project != NULL );
     return true;
 }
 
@@ -91,66 +91,133 @@ bool Move3dProblem::LoadConfigFile( std::istream& sinput )
     return true;
 }
 
-bool Move3dProblem::RunRRT()
+bool Move3dProblem::SetParameter( std::istream& sinput )
 {
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-    move3d_draw_clear();
+    std::string name;
+    double value;
 
-    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    sinput >> name;
+    if( !sinput )
+        return false;
 
-    cout << "robot name : " << robot->getName() << endl;
-    cout << "nb dofs : " << robot->getNumberOfDofs() << endl;
+    sinput >> value;
 
-    Move3D::confPtr_t q_init = robot->getNewConfig();
-    Move3D::confPtr_t q_goal = robot->getNewConfig();
+    cout << "Set parameter name : " << name <<  " , value : " << value << endl;
 
-    (*q_init)[0] = 20.0;
-    (*q_init)[1] = 50.0;
-
-    (*q_goal)[0] = 200.0;
-    (*q_goal)[1] = 700.0;
-
-    or_runDiffusion( q_init, q_goal );
-
-    RAVELOG_INFO("End RunRRT normally\n");
+    qt_setParameter( name, value );
 
     return true;
 }
 
-bool Move3dProblem::RunStomp()
+bool Move3dProblem::GetOptions( std::ostream& sout, std::istream& sinput )
+{
+    goals_.clear();
+
+    std::string cmd;
+    while(!sinput.eof())
+    {
+        sinput >> cmd;
+        if( !sinput )
+            break;
+
+        if( cmd == "jointgoals" )
+        {
+            cout << cmd << endl;
+            // note that this appends to goals, does not overwrite them
+            size_t temp;
+            sinput >> temp;
+            size_t oldsize = goals_.size();
+            goals_.resize(oldsize+temp);
+            for(size_t i = oldsize; i < oldsize+temp; i++) {
+                sinput >> goals_[i];
+                // cout << "goal[" << i << "] : " << goals_[i] << endl;
+            }
+        }
+        else break;
+        if( !sinput ) {
+            RAVELOG_DEBUG("failed\n");
+            sout << 0;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
 {
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-    std::string coll_checker_name = "VoxelColChecker" ;
+    if( !GetOptions( sout, sinput ) ){
+        return false;
+    }
 
+    move3d_draw_clear();
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
+
+    Move3D::confPtr_t q_init = robot->getCurrentPos();
+    Move3D::confPtr_t q_goal = robot->getNewConfig();
+
+    // Set goal configurations
+    std::vector<int> indices = robot->getActiveJointsIds();
+    if( indices.size() != goals_.size() ) {
+        RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
+        return false;
+    }
+
+    for(size_t i = 0; i < indices.size(); i++)
+        (*q_goal)[ indices[i] ] = goals_[i];
+
+    or_runDiffusion( q_init, q_goal );
+
+    RAVELOG_INFO("End RunRRT normally\n");
+    return true;
+}
+
+bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
+{
+    cout << "------------------------" << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    if( !GetOptions( sout, sinput ) ){
+        return false;
+    }
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
+
+    Move3D::confPtr_t q_init = robot->getCurrentPos();
+    Move3D::confPtr_t q_goal = robot->getNewConfig();
+
+    // Set goal configurations
+    std::vector<int> indices = robot->getActiveJointsIds();
+    if( indices.size() != goals_.size() ) {
+        RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
+        return false;
+    }
+
+    for(size_t i = 0; i < indices.size(); i++)
+        (*q_goal)[ indices[i] ] = goals_[i];
+
+    // Set Collision Checker
+    std::string coll_checker_name = "VoxelColChecker" ;
     CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
     if( !pchecker ) {
         RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
         return false;
     }
-     GetEnv()->SetCollisionChecker( pchecker );
+    GetEnv()->SetCollisionChecker( pchecker );
 
-    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
-
-    cout << "robot name : " << robot->getName() << endl;
-    cout << "nb dofs : " << robot->getNumberOfDofs() << endl;
-
-    Move3D::confPtr_t q_init = robot->getNewConfig();
-    Move3D::confPtr_t q_goal = robot->getNewConfig();
-
-    (*q_init)[0] = 20.0;
-    (*q_init)[1] = 50.0;
-
-    (*q_goal)[0] = 200.0;
-    (*q_goal)[1] = 700.0;
-
+    // Start Stomp
     or_runStomp( q_init, q_goal );
 
     RAVELOG_INFO("End Stomp normally\n");
-
     return true;
 }
 
@@ -160,6 +227,8 @@ bool Move3dProblem::SendCommand( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
+// To run in gdb use the following command line
+// gdb --args openrave --loadplugin ../plugins/libor-move3d.so --module move3d "run_test_2"
 int Move3dProblem::main(const std::string& cmd)
 {
     RAVELOG_DEBUG("env: %s\n", cmd.c_str());
@@ -167,22 +236,50 @@ int Move3dProblem::main(const std::string& cmd)
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-    if( cmd == "run_test" )
+    if( cmd == "run_test_1" )
     {
         std::string file( "../ormodels/stones.env.xml" );
         env_->Load( file );
         InitMove3dEnv();
-        std::istringstream is( "/home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stomp_stones" );
+        std::istringstream is( "../parameter_files/stomp_stones" );
         LoadConfigFile( is );
-        RunStomp();
+        // RunStomp();
     }
 
-//    const char* delim = " \r\n\t";
-//    string mycmd = cmd;
-//    char* p = strtok(&mycmd[0], delim);
-//    if( p != NULL )
-//        strRobotName_ = p;
-//    cout << "strRobotName_: " << strRobotName_ << endl;
+    if( cmd == "run_test_2" )
+    {
+        std::string filename;
+        filename = "robots/pr2-beta-static.zae";
+        env_->Load( filename );
+        filename = "data/shelf.kinbody.xml";
+        env_->Load( filename );
+
+        RobotBasePtr robot = env_->GetRobot( "pr2" );
+        std::vector<int> indices;
+        indices.push_back(27);
+        indices.push_back(28);
+        indices.push_back(29);
+        indices.push_back(30);
+        indices.push_back(31);
+        indices.push_back(32);
+        indices.push_back(33);
+        robot->SetActiveDOFs( indices );
+
+        InitMove3dEnv();
+        std::istringstream is( "../parameter_files/pr2_shelf" );
+        LoadConfigFile( is );
+
+        std::ostringstream out;
+        std::istringstream q_goal( "jointgoals 7 0.2 -0.3 0.5 -0.6 -1.5 -1 0" );
+        RunStomp( out, q_goal );
+    }
+
+    //    const char* delim = " \r\n\t";
+    //    string mycmd = cmd;
+    //    char* p = strtok(&mycmd[0], delim);
+    //    if( p != NULL )
+    //        strRobotName_ = p;
+    //    cout << "strRobotName_: " << strRobotName_ << endl;
 
     //std::vector<RobotBasePtr> robots;
     //GetEnv()->GetRobots(robots);

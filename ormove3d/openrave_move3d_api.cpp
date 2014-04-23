@@ -259,9 +259,8 @@ confPtr_t move3d_robot_get_current_pos( Robot* R )
     confPtr_t q = R->getNewConfig();
 
     for( size_t i=0;i<q_tmp.size();i++)
-    {
         (*q)[i] = q_tmp[i];
-    }
+
     return q;
 }
 
@@ -622,6 +621,7 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
 
 void move3d_set_or_api_scene()
 {
+    move3d_set_api_functions( false );
     move3d_set_fct_scene_constructor( boost::bind( move3d_scene_constructor_fct, _1, _2, _3, _4 ) );
     move3d_set_fct_set_active_robot( boost::bind( move3d_scene_set_active_robot, _1, _2, _3 ) );
     move3d_set_fct_get_active_robot( boost::bind( move3d_scene_get_active_robot, _1, _2 ) );
