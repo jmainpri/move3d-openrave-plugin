@@ -6,6 +6,8 @@
 #include <boost/bind.hpp>
 #include <iostream>
 
+#include <libmove3d/planners/API/Trajectory/trajectory.hpp>
+
 using namespace OpenRAVE;
 
 class Move3dProblem : public ModuleBase
@@ -29,10 +31,10 @@ private:
     bool GetOptions( std::ostream& sout, std::istream& sinput );
     bool RunRRT( std::ostream& sout, std::istream& sinput );
     bool RunStomp( std::ostream& sout, std::istream& sinput );
+    bool CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj );
 
     std::vector<dReal> goals_;
 //    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
-
     EnvironmentBasePtr env_;
 };
 

@@ -338,12 +338,12 @@ void move3d_smoothing_function( Trajectory& traj, int nbSteps, double maxTime )
     }
 }
 
-int move3d_run_rrt(Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confPtr_t q_target )
+Move3D::Trajectory* move3d_run_rrt( Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confPtr_t q_target )
 {
     rob->setInitPos( *q_source );
     rob->setGoalPos( *q_target );
 
-    Trajectory* path = move3d_planner_function( rob, q_source, q_target );
+    Move3D::Trajectory* path = move3d_planner_function( rob, q_source, q_target );
 
     if( path != NULL &&
             !PlanEnv->getBool(PlanParam::stopPlanner) &&
@@ -355,13 +355,13 @@ int move3d_run_rrt(Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confP
         move3d_smoothing_function( *path, max_iteration, max_time);
     }
 
-    return (path != NULL);
+    return path;
 }
 
 /**
  * Run Diffusion
  */
-bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
+Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
 {
     cout << "Run Diffusion" << endl;
 
@@ -369,8 +369,10 @@ bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
     if( robot == NULL )
     {
         cout << "robot not defined" << endl;
-        return false;
+        return NULL;
     }
+
+    Move3D::Trajectory* path = NULL;
 //    try
     {
         p3d_SetStopValue(FALSE);
@@ -387,7 +389,7 @@ bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
         }
         else
         {
-            move3d_run_rrt( robot, q_init, q_goal );
+            path = move3d_run_rrt( robot, q_init, q_goal );
         }
 
         gettimeofday(&tim, NULL);
@@ -420,10 +422,10 @@ bool or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
 //        ENV.setBool(Env::isRunning,false);
 //    }
 
-    return true;
+    return path;
 }
 
-bool or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
+Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
 {
     cout << "Run Stomp" << endl;
 
@@ -462,8 +464,6 @@ bool or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
 
     pool.run( 0, T );
 
-//    all_traj_ = pool.getContext(0)->getStompOptimizer()->getAllTrajs();
-//    best_traj_.push_back( pool.getBestTrajectory( 0 ) );
-
-    return true;
+    Move3D::Trajectory* path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
+    return path;
 }

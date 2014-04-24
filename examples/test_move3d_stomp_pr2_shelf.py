@@ -65,24 +65,27 @@ if __name__ == "__main__":
     q_goal = [0.2,-0.3,0.5,-0.6,-1.5,-1,0]
     
     robot.SetActiveDOFs( indices )
-    robot.SetDOFValues( q_init, indices )
     
-    print "Press return to run "
-    sys.stdin.readline()
+    # print "Press return to run "
+    # sys.stdin.readline()
 
     prob = RaveCreateModule( orEnv, 'Move3d' )
     orEnv.AddModule( prob, args='' )
 
     prob.SendCommand('InitMove3dEnv')
     prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_pr2_shelf')
-    prob.SendCommand('SetParameter jntToDraw 33')
+    prob.SendCommand('SetParameter jntToDraw 34')
         
     collChecker = orEnv.GetCollisionChecker()
 
     while True :
 
-        prob.SendCommand('RunStomp jointgoals ' + SerializeConfig( q_goal ) )   
+        with orEnv :
+            robot.SetDOFValues( q_init, indices )
+            prob.SendCommand('RunStomp jointgoals ' + SerializeConfig( q_goal ) )   
+            
         orEnv.SetCollisionChecker( collChecker )
+            
         print "Press return to exit."
         sys.stdin.readline()
 

@@ -147,6 +147,58 @@ bool Move3dProblem::GetOptions( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
+bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj )
+{
+    ConfigurationSpecification confspec =  robot->GetActiveConfigurationSpecification();
+    ConfigurationSpecification::Group& group = confspec.GetGroupFromName("joint_values");
+    group.interpolation = "linear";
+    confspec.AddDerivativeGroups( 0, true ); // Add joint_velocity
+
+    cout << confspec << endl;
+
+    ptraj->Init( confspec );
+
+    std::vector<dReal> vtraj_data;
+    const std::vector<int>& indices = robot->GetActiveDOFIndices();
+
+    for( int j=0; j<traj->getNbOfViaPoints(); j++)
+    {
+        Move3D::confPtr_t q = (*traj)[j];
+
+        for( size_t i=0; i<indices.size(); i++) // Positions
+        {
+            vtraj_data.push_back( (*q)[ indices[i] ] );
+        }
+
+//        for( size_t i=0; i<indices.size(); i++) // Vellocity
+//        {
+//            vtraj_data.push_back( 0.1 );
+//        }
+
+        vtraj_data.push_back( 0.2 ); // Time stamp
+    }
+
+    ptraj->Insert( ptraj->GetNumWaypoints(), vtraj_data, confspec );
+
+    if( int( ptraj->GetNumWaypoints() ) != traj->getNbOfViaPoints() )
+    {
+        RAVELOG_INFO("Error, trajectory timer changed the number of points: %d before vs. %d after\n", traj->getNbOfViaPoints(), ptraj->GetNumWaypoints() );
+        return false;
+    }
+
+    cout << "traj number of way points : " << ptraj->GetNumWaypoints() << endl;
+
+    // Save to file
+    std::string filename( "traj.txt" );
+    std::ofstream outfile( filename.c_str(), std::ios::out );
+    outfile.precision(16);
+    ptraj->serialize( outfile );
+    outfile.close();
+    // chmod( filename.c_str(), S_IRWXG | S_IRWXO | S_IRWXU ); //chmod 777
+
+    return true;
+}
+
 bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
 {
     cout << "------------------------" << endl;
@@ -165,7 +217,8 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     Move3D::confPtr_t q_goal = robot->getNewConfig();
 
     // Set goal configurations
-    std::vector<int> indices = robot->getActiveJointsIds();
+    RobotBasePtr orRobot = env_->GetRobot( robot->getName() );
+    const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
     if( indices.size() != goals_.size() ) {
         RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
         return false;
@@ -174,7 +227,14 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     for(size_t i = 0; i < indices.size(); i++)
         (*q_goal)[ indices[i] ] = goals_[i];
 
-    or_runDiffusion( q_init, q_goal );
+    Move3D::Trajectory* traj = or_runDiffusion( q_init, q_goal );
+
+    if( traj != NULL ){
+        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
+        CreateTraj( traj, orRobot, ptraj );
+        delete traj;
+        orRobot->GetController()->SetPath(ptraj);
+    }
 
     RAVELOG_INFO("End RunRRT normally\n");
     return true;
@@ -196,7 +256,8 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
     Move3D::confPtr_t q_goal = robot->getNewConfig();
 
     // Set goal configurations
-    std::vector<int> indices = robot->getActiveJointsIds();
+    RobotBasePtr orRobot = env_->GetRobot( robot->getName() );
+    const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
     if( indices.size() != goals_.size() ) {
         RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
         return false;
@@ -215,7 +276,14 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
     GetEnv()->SetCollisionChecker( pchecker );
 
     // Start Stomp
-    or_runStomp( q_init, q_goal );
+    Move3D::Trajectory* traj = or_runStomp( q_init, q_goal );
+
+    if( traj != NULL ){
+        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
+        CreateTraj( traj, orRobot, ptraj );
+        delete traj;
+        orRobot->GetController()->SetPath(ptraj);
+    }
 
     RAVELOG_INFO("End Stomp normally\n");
     return true;
