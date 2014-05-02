@@ -30,10 +30,27 @@ class TwoDPlanner():
         self.drawingHandles = []
         self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
 
-        self.robot = self.orEnv.GetRobots()[0]
+        self.robot = self.orEnv.GetRobots()[0]    
+
+        # Disable Box0 link
+        self.robot.GetLink('Box0').Enable( False )
+ 
+        # Init collision checker
+        collisionChecker = RaveCreateCollisionChecker( self.orEnv,'VoxelColChecker')
+        collisionChecker.SendCommand('SetDimension extent 500 800 30 voxelsize 5')
+        collisionChecker.SendCommand('Initialize')
+        self.orEnv.SetCollisionChecker( collisionChecker )
+
+        self.SetCamera() 
+
+        print "Press return to run"
+        sys.stdin.readline()
+
+        collisionChecker.SendCommand('SetDrawing off')
 
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile ../parameter_files/stomp_stones')
+        self.prob.SendCommand('SetParameter jntToDraw 1')
 
         self.collChecker = self.orEnv.GetCollisionChecker()
 
@@ -43,9 +60,9 @@ class TwoDPlanner():
         q_goal = [200,700]
 
         self.robot.SetDOFValues( array(q_init) )
-        self.prob.SendCommand('RunStomp jointgoals ' + SerializeConfig(q_goal) )
-
-        self.orEnv.SetCollisionChecker( self.collChecker )
+            
+        with self.robot :
+            self.prob.SendCommand('RunStomp jointgoals ' + SerializeConfig(q_goal) )
 
         print "Press return to run"
         sys.stdin.readline()
@@ -65,10 +82,6 @@ if __name__ == "__main__":
 
     print "START OPENRAVE"
     planner = TwoDPlanner()
-    planner.SetCamera() 
-
-    # print "Press return to run"
-    # sys.stdin.readline()
-
+ 
     while True :
         planner.run()

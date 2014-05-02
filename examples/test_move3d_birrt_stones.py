@@ -35,7 +35,7 @@ class TwoDPlanner():
         q_init = [20,50]
         q_goal = [200,700]
 
-        self.robot.SetDOFValues( array(q_init) )
+        self.robot.SetDOFValues( q_init )
 
         with self.orEnv :
             self.prob.SendCommand('RunRRT jointgoals ' + SerializeConfig(q_goal) )  

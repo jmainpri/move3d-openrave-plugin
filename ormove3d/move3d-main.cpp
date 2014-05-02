@@ -267,13 +267,13 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
         (*q_goal)[ indices[i] ] = goals_[i];
 
     // Set Collision Checker
-    std::string coll_checker_name = "VoxelColChecker" ;
-    CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
-    if( !pchecker ) {
-        RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
-        return false;
-    }
-    GetEnv()->SetCollisionChecker( pchecker );
+//    std::string coll_checker_name = "VoxelColChecker" ;
+//    CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
+//    if( !pchecker ) {
+//        RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
+//        return false;
+//    }
+//    GetEnv()->SetCollisionChecker( pchecker );
 
     // Start Stomp
     Move3D::Trajectory* traj = or_runStomp( q_init, q_goal );
@@ -322,6 +322,17 @@ int Move3dProblem::main(const std::string& cmd)
         filename = "data/shelf.kinbody.xml";
         env_->Load( filename );
 
+        KinBodyPtr shelf = env_->GetKinBody( "Shelf" );
+        TransformMatrix T;
+
+        T.m[0]= 1.00000000e+00;   T.m[1]=0.00000000e+00;   T.m[2]=0.00000000e+00;
+        T.m[4]= 0.00000000e+00;   T.m[5]=1.11022302e-16;   T.m[6]=1.00000000e+00;
+        T.m[8]= 0.00000000e+00;   T.m[9]=-1.00000000e+00;  T.m[10]=1.11022302e-16;
+
+        T.trans.x=7.00000000e-01;  T.trans.y=-5.00000000e-01;  T.trans.z=0.00000000e+00;
+
+        shelf->SetTransform( T );
+
         RobotBasePtr robot = env_->GetRobot( "pr2" );
         std::vector<int> indices;
         indices.push_back(27);
@@ -332,6 +343,16 @@ int Move3dProblem::main(const std::string& cmd)
         indices.push_back(32);
         indices.push_back(33);
         robot->SetActiveDOFs( indices );
+
+        std::vector<dReal> q_init;
+        q_init.push_back(0.2);
+        q_init.push_back(0.5);
+        q_init.push_back(0.5);
+        q_init.push_back(-0.6);
+        q_init.push_back(-1.5);
+        q_init.push_back(-1);
+        q_init.push_back(0);
+        robot->SetActiveDOFValues( q_init );
 
         InitMove3dEnv();
         std::istringstream is( "../parameter_files/pr2_shelf" );

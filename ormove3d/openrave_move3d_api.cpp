@@ -323,7 +323,10 @@ void* move3d_joint_constructor( Joint* J, void* jntPt, std::string& name )
 
 Vector3d move3d_joint_get_vector_pos( const Joint* J )
 {
-    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetSecondAttached()->GetTransform().trans;
+//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+
+//    For Puck (TODO FIX)
+    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
 
     Vector3d v;
     v(0) = p[0];

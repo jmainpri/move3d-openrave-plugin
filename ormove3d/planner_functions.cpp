@@ -462,8 +462,16 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
 //       T = init_stomp_;
 //    }
 
-    pool.run( 0, T );
+    Move3D::Trajectory* path = NULL;
 
-    Move3D::Trajectory* path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
+    if( pool.run( 0, T ) )
+    {
+        path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
+    }
+    else
+    {
+        path = new Move3D::Trajectory( T );
+    }
+
     return path;
 }
