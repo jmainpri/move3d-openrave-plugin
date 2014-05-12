@@ -93,8 +93,8 @@ bool Move3dProblem::LoadConfigFile( std::istream& sinput )
 
 bool Move3dProblem::SetParameter( std::istream& sinput )
 {
-    cout << "------------------------" << endl;
-    cout << __PRETTY_FUNCTION__ << endl;
+//    cout << "------------------------" << endl;
+//    cout << __PRETTY_FUNCTION__ << endl;
 
     std::string name;
     double value;

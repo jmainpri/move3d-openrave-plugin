@@ -34,7 +34,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-using namespace Move3D;
+//using namespace Move3D;
 
 static unsigned int runId = 0;
 static unsigned int trajId = 0;
@@ -50,11 +50,11 @@ struct RRTStatistics
 };
 
 static RRTStatistics rrt_statistics;
-static TrajectoryStatistics traj_statistics;
+static Move3D::TrajectoryStatistics traj_statistics;
 
 static bool set_costspace = false;
 
-Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes, Graph* graph, confPtr_t q_source, confPtr_t q_target)
+Move3D::Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes, Move3D::Graph* graph, Move3D::confPtr_t q_source, Move3D::confPtr_t q_target)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
@@ -67,7 +67,7 @@ Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes, Graph* 
         // Case of direct connection
         if( nb_added_nodes == 2 )
         {
-            std::vector<confPtr_t> configs;
+            std::vector<Move3D::confPtr_t> configs;
 
             configs.push_back( q_source );
             configs.push_back( q_target );
@@ -127,11 +127,11 @@ Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes, Graph* 
 // ---------------------------------------------------------------------------------
 // Allocates an RRT depending on env variables
 // ---------------------------------------------------------------------------------
-RRT* move3d_allocate_rrt( Robot* rob,Graph* graph )
+Move3D::RRT* move3d_allocate_rrt( Move3D::Robot* rob, Move3D::Graph* graph )
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    RRT* rrt;
+    Move3D::RRT* rrt;
 
 //    if(ENV.getBool(Env::isManhattan))
 //    {
@@ -139,11 +139,11 @@ RRT* move3d_allocate_rrt( Robot* rob,Graph* graph )
 //    }
     if(ENV.getBool(Env::isMultiRRT) && ENV.getBool(Env::isCostSpace)  )
     {
-        rrt = new MultiTRRT(rob,graph);
+        rrt = new Move3D::MultiTRRT(rob,graph);
     }
     else if(ENV.getBool(Env::isMultiRRT))
     {
-        rrt = new MultiRRT(rob,graph);
+        rrt = new Move3D::MultiRRT(rob,graph);
     }
 #ifdef HRI_COSTSPACE
     else if(ENV.getBool(Env::HRIPlannerWS) && ENV.getBool(Env::HRIPlannerTRRT))
@@ -157,15 +157,15 @@ RRT* move3d_allocate_rrt( Robot* rob,Graph* graph )
 #endif
     else if(ENV.getBool(Env::isCostSpace) && ENV.getBool(Env::costThresholdRRT) )
     {
-        rrt = new ThresholdRRT(rob,graph);
+        rrt = new Move3D::ThresholdRRT(rob,graph);
     }
     else if(ENV.getBool(Env::isCostSpace) && PlanEnv->getBool(PlanParam::starRRT) )
     {
-        rrt = new StarRRT(rob,graph);
+        rrt = new Move3D::StarRRT(rob,graph);
     }
     else if(ENV.getBool(Env::isCostSpace) && ENV.getBool(Env::useTRRT) )
     {
-        rrt = new TransitionRRT(rob,graph);
+        rrt = new Move3D::TransitionRRT(rob,graph);
     }
     else
     {
@@ -175,13 +175,13 @@ RRT* move3d_allocate_rrt( Robot* rob,Graph* graph )
             set_costspace = true;
         }
 
-        rrt = new RRT(rob,graph);
+        rrt = new Move3D::RRT(rob,graph);
     }
 
     return rrt;
 }
 
-Trajectory* move3d_planner_function( Robot* rob, confPtr_t q_source, confPtr_t q_target )
+Move3D::Trajectory* move3d_planner_function( Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confPtr_t q_target )
 {
     cout << "* PLANNING ***************" << endl;
 
@@ -192,17 +192,17 @@ Trajectory* move3d_planner_function( Robot* rob, confPtr_t q_source, confPtr_t q
 
     // Allocate the p3d_graph if does't exist
     // Delete graph if it exists, creates a new graph , Allocate RRT
-    delete API_activeGraph;
-    Graph* graph = API_activeGraph = new Graph(rob);
+    delete Move3D::API_activeGraph;
+    Move3D::Graph* graph = Move3D::API_activeGraph = new Move3D::Graph(rob);
 
     // Delete last global planner
-    if( global_Move3DPlanner ) delete global_Move3DPlanner;
+    if( Move3D::global_Move3DPlanner ) delete Move3D::global_Move3DPlanner;
 
     // Main Run functions of all RRTs
     // All RRTs are initilized with init and run here
     int nb_added_nodes = 0;
-    RRT* rrt = move3d_allocate_rrt( rob, graph );
-    global_Move3DPlanner = rrt;
+    Move3D::RRT* rrt = move3d_allocate_rrt( rob, graph );
+    Move3D::global_Move3DPlanner = rrt;
     nb_added_nodes += rrt->setInit(q_source);
     nb_added_nodes += rrt->setGoal(q_target);
     nb_added_nodes += rrt->init();
@@ -227,7 +227,7 @@ Trajectory* move3d_planner_function( Robot* rob, confPtr_t q_source, confPtr_t q
     cout << "Time before trajectory extraction :"  << time << " sec." << endl;
 
     // Extract the trajectory if one exists, else return NULL
-    Trajectory* traj = move3d_extract_traj( rrt->trajFound(), nb_added_nodes, graph, q_source, q_target );
+    Move3D::Trajectory* traj = move3d_extract_traj( rrt->trajFound(), nb_added_nodes, graph, q_source, q_target );
 
     ChronoTimeOfDayTimes(&time);
     ChronoTimeOfDayOff();
@@ -259,7 +259,7 @@ Trajectory* move3d_planner_function( Robot* rob, confPtr_t q_source, confPtr_t q
     return traj;
 }
 
-void move3d_smoothing_function( Trajectory& traj, int nbSteps, double maxTime )
+void move3d_smoothing_function( Move3D::Trajectory& traj, int nbSteps, double maxTime )
 {
     cout << "** SMOOTHING ***************" << endl;
 
@@ -401,10 +401,10 @@ Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t
         }
     }
 
-    cout << " API_activeGraph : " << API_activeGraph << endl;
+    cout << " API_activeGraph : " << Move3D::API_activeGraph << endl;
 
-    if( API_activeGraph )
-        API_activeGraph->draw();
+    if( Move3D::API_activeGraph )
+        Move3D::API_activeGraph->draw();
 
 //    catch (std::string str)
 //    {
@@ -436,42 +436,65 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
         return false;
     }
 
-    std::vector<Robot*> robots;
-    robots.push_back( robot );
+    std::vector<Move3D::Robot*> robots;
+    std::vector<Move3D::Trajectory> trajs;
+    Move3D::Trajectory* path = NULL;
 
     // TODO see to remove this
     traj_optim_initScenario();
-
     std::vector<int> planner_joints = traj_optim_get_planner_joints();
-    const CollisionSpace* coll_space = traj_optim_get_collision_space();
-    std::vector<CollisionPoint> collision_points = traj_optim_get_collision_points();
 
-    stomp_motion_planner::stompRun pool( coll_space, planner_joints, collision_points );
+    // Set is parallel variable
+    bool is_parallel = PlanEnv->getBool(PlanParam::trajStompRunParallel);
+    bool is_multiple = PlanEnv->getBool(PlanParam::trajStompRunMultiple);
+
+    if( is_parallel && is_multiple )
+    {
+        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob1") );
+        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob2") );
+        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob3") );
+        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob4") );
+
+        for( int i=0;i<int(robots.size()); i++)
+        {
+            trajs.push_back( Move3D::Trajectory( robots[i] ) );
+            trajs.back().push_back( robots[i]->getInitPos() );
+            trajs.back().push_back( robots[i]->getGoalPos() );
+        }
+    }
+    else {
+        robots.push_back( robot );
+    }
+
+    stomp_motion_planner::stompRun pool( NULL, planner_joints );
     pool.setPool( robots );
+
+    if( is_parallel && is_multiple )
+    {
+        pool.start();
+
+        for( int i=0;i<int(robots.size()); i++)
+        {
+            boost::thread( &stomp_motion_planner::stompRun::run, &pool, i, trajs[i] );
+        }
+
+        pool.isRunning();
+    }
+    else // Non-parallel case
+    {
+        trajs.clear();
+        trajs.push_back( Move3D::Trajectory( robot ) );
+        trajs[0].push_back( q_init );
+        trajs[0].push_back( q_goal );
+
+        if( pool.run( 0, trajs[0] ) )
+            path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
+        else
+            path = new Move3D::Trajectory( trajs[0] );
+    }
+
     // Uncomment for parallel stomps
     // pool.setRobotPool( 0, robots );
-
-    Move3D::Trajectory T( robot );
-
-//    if( init_stomp_.getNbOfViaPoints() == 0 )
-    {
-        T.push_back( q_init );
-        T.push_back( q_goal );
-    }
-//    else{
-//       T = init_stomp_;
-//    }
-
-    Move3D::Trajectory* path = NULL;
-
-    if( pool.run( 0, T ) )
-    {
-        path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
-    }
-    else
-    {
-        path = new Move3D::Trajectory( T );
-    }
 
     return path;
 }
