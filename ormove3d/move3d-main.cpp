@@ -7,6 +7,7 @@
 #include <libmove3d/planners/API/Device/robot.hpp>
 #include <libmove3d/planners/API/Device/joint.hpp>
 #include <libmove3d/planners/API/project.hpp>
+#include <libmove3d/planners/planner/planEnvironment.hpp>
 
 #define UNIX
 
@@ -40,8 +41,6 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("setparameter",boost::bind(&Move3dProblem::SetParameter,this,_2),"returns true if ok");
     RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this,_1,_2),"returns true if ok");
     RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this,_1,_2),"returns true if ok");
-
-    env_ = penv;
 }
 
 void Move3dProblem::Destroy()
@@ -59,7 +58,7 @@ bool Move3dProblem::InitMove3dEnv()
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-    move3d_set_or_api_environment_pointer( env_ );
+    move3d_set_or_api_environment_pointer( GetEnv() );
 
     move3d_set_or_api_scene();
     move3d_set_or_api_functions_configuration();
@@ -71,7 +70,7 @@ bool Move3dProblem::InitMove3dEnv()
 
     init_all_draw_functions_dummy();
 
-    Move3D::global_Project = new Move3D::Project(new Move3D::Scene( env_.get() ));
+    Move3D::global_Project = new Move3D::Project(new Move3D::Scene( GetEnv().get() ));
     //    return ( Move3D::global_Project != NULL );
     return true;
 }
@@ -217,7 +216,7 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     Move3D::confPtr_t q_goal = robot->getNewConfig();
 
     // Set goal configurations
-    RobotBasePtr orRobot = env_->GetRobot( robot->getName() );
+    RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
     const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
     if( indices.size() != goals_.size() ) {
         RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
@@ -256,7 +255,7 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
     Move3D::confPtr_t q_goal = robot->getNewConfig();
 
     // Set goal configurations
-    RobotBasePtr orRobot = env_->GetRobot( robot->getName() );
+    RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
     const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
     if( indices.size() != goals_.size() ) {
         RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
@@ -266,14 +265,29 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
     for(size_t i = 0; i < indices.size(); i++)
         (*q_goal)[ indices[i] ] = goals_[i];
 
-    // Set Collision Checker
-//    std::string coll_checker_name = "VoxelColChecker" ;
-//    CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
-//    if( !pchecker ) {
-//        RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
-//        return false;
-//    }
-//    GetEnv()->SetCollisionChecker( pchecker );
+    if( /*PlanEnv->getBool(PlanParam::trajStompRunParallel)*/ true )
+    {
+//        InterfaceBasePtr module = shared_from_this();
+//        cout << "this module name is : " << module->GetPluginName() << endl;
+
+//        std::vector<RobotBasePtr> robots_clones;
+
+        for(size_t i = 0; i<4; i++)
+        {
+            RobotBasePtr robot_clone = RaveCreateRobot( GetEnv() );
+            robot_clone->Clone( orRobot, 0 );
+            char c = i+48; // Perfect until 10 !!!!
+            robot_clone->SetName( orRobot->GetName() + "_" + std::string(&c) );
+            GetEnv()->Add( robot_clone );
+        }
+
+        std::vector<RobotBasePtr> robots;
+        GetEnv()->GetRobots( robots );
+        for(size_t i = 0; i<robots.size(); i++)
+        {
+            cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
+        }
+    }
 
     // Start Stomp
     Move3D::Trajectory* traj = or_runStomp( q_init, q_goal );
@@ -307,7 +321,7 @@ int Move3dProblem::main(const std::string& cmd)
     if( cmd == "run_test_1" )
     {
         std::string file( "../ormodels/stones.env.xml" );
-        env_->Load( file );
+        GetEnv()->Load( file );
         InitMove3dEnv();
         std::istringstream is( "../parameter_files/stomp_stones" );
         LoadConfigFile( is );
@@ -318,11 +332,11 @@ int Move3dProblem::main(const std::string& cmd)
     {
         std::string filename;
         filename = "robots/pr2-beta-static.zae";
-        env_->Load( filename );
+        GetEnv()->Load( filename );
         filename = "data/shelf.kinbody.xml";
-        env_->Load( filename );
+        GetEnv()->Load( filename );
 
-        KinBodyPtr shelf = env_->GetKinBody( "Shelf" );
+        KinBodyPtr shelf = GetEnv()->GetKinBody( "Shelf" );
         TransformMatrix T;
 
         T.m[0]= 1.00000000e+00;   T.m[1]=0.00000000e+00;   T.m[2]=0.00000000e+00;
@@ -333,7 +347,7 @@ int Move3dProblem::main(const std::string& cmd)
 
         shelf->SetTransform( T );
 
-        RobotBasePtr robot = env_->GetRobot( "pr2" );
+        RobotBasePtr robot = GetEnv()->GetRobot( "pr2" );
         std::vector<int> indices;
         indices.push_back(27);
         indices.push_back(28);

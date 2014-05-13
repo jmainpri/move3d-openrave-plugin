@@ -35,7 +35,6 @@ private:
 
     std::vector<dReal> goals_;
 //    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
-    EnvironmentBasePtr env_;
 };
 
 #endif // MOVE3DMAIN_HPP
