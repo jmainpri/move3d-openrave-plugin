@@ -41,6 +41,7 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("setparameter",boost::bind(&Move3dProblem::SetParameter,this,_2),"returns true if ok");
     RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this,_1,_2),"returns true if ok");
     RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this,_1,_2),"returns true if ok");
+    RegisterCommand("clonerobot",boost::bind(&Move3dProblem::CloneRobot,this,_1,_2),"returns true if ok");
 }
 
 void Move3dProblem::Destroy()
@@ -239,6 +240,72 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
+bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
+{
+    std::string name;
+    size_t number = 0;
+    std::string cmd;
+    while(!sinput.eof())
+    {
+        sinput >> cmd;
+        if( !sinput )
+            break;
+
+        if( cmd == "name" )
+        {
+            sinput >> name;
+        }
+        else if( cmd == "number" )
+        {
+            sinput >> number;
+        }
+        else break;
+        if( !sinput ) {
+            RAVELOG_DEBUG("failed\n");
+            sout << 0;
+            return false;
+        }
+    }
+
+    // Remove all robot clones from environement
+    for( size_t i=0; robotclones_.size(); i++) {
+        cout << "Remove robot " << robotclones_[i]->GetName() << " from environment" << endl;
+        GetEnv()->Remove( robotclones_[i] );
+    }
+    robotclones_.clear();
+
+    if( number > 0 && number < 10 )
+    {
+        RobotBasePtr orRobot = GetEnv()->GetRobot( name );
+        if( orRobot.get() != NULL )
+        {
+            for(size_t i=0; i<number; i++)
+            {
+                RobotBasePtr robot_clone = RaveCreateRobot( GetEnv() );
+                robot_clone->Clone( orRobot, 0 );
+                char c = i+48; // Perfect until 10 !!!!
+                robot_clone->SetName( orRobot->GetName() + "_" + std::string(&c) );
+                GetEnv()->Add( robot_clone );
+            }
+
+            std::vector<RobotBasePtr> robots;
+            GetEnv()->GetRobots( robots );
+            for(size_t i = 0; i<robots.size(); i++)
+                cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
+        }
+        else {
+            cout << "Robot name : " << name << " counld not be found in enviroment" << endl;
+            return false;
+        }
+    }
+    else {
+        cout << "Wrong number of robots" << endl;
+        return false;
+    }
+
+    return true;
+}
+
 bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
 {
     cout << "------------------------" << endl;
@@ -264,30 +331,6 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
 
     for(size_t i = 0; i < indices.size(); i++)
         (*q_goal)[ indices[i] ] = goals_[i];
-
-    if( /*PlanEnv->getBool(PlanParam::trajStompRunParallel)*/ true )
-    {
-//        InterfaceBasePtr module = shared_from_this();
-//        cout << "this module name is : " << module->GetPluginName() << endl;
-
-//        std::vector<RobotBasePtr> robots_clones;
-
-        for(size_t i = 0; i<4; i++)
-        {
-            RobotBasePtr robot_clone = RaveCreateRobot( GetEnv() );
-            robot_clone->Clone( orRobot, 0 );
-            char c = i+48; // Perfect until 10 !!!!
-            robot_clone->SetName( orRobot->GetName() + "_" + std::string(&c) );
-            GetEnv()->Add( robot_clone );
-        }
-
-        std::vector<RobotBasePtr> robots;
-        GetEnv()->GetRobots( robots );
-        for(size_t i = 0; i<robots.size(); i++)
-        {
-            cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
-        }
-    }
 
     // Start Stomp
     Move3D::Trajectory* traj = or_runStomp( q_init, q_goal );

@@ -32,8 +32,10 @@ private:
     bool RunRRT( std::ostream& sout, std::istream& sinput );
     bool RunStomp( std::ostream& sout, std::istream& sinput );
     bool CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj );
+    bool CloneRobot( std::ostream& sout, std::istream& sinput );
 
     std::vector<dReal> goals_;
+    std::vector<RobotBasePtr> robotclones_;
 //    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
 };
 

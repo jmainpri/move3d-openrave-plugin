@@ -450,12 +450,21 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
 
     if( is_parallel && is_multiple )
     {
-        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob1") );
-        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob2") );
-        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob3") );
-        robots.push_back( Move3D::global_Project->getActiveScene()->getRobotByName("rob4") );
+        robots.clear();
 
-        for( int i=0;i<int(robots.size()); i++)
+        do
+        {
+            char c = robots.size()+48; // Perfect until 10 !!!!
+            Move3D::Robot* clone = Move3D::global_Project->getActiveScene()->getRobotByName( robot->getName() + "_" + std::string(&c)  );
+
+            if( clone != NULL )
+                robots.push_back( clone );
+            else
+                break;
+        }
+        while( robots.size() < 10 ); // Warning: only authorize 10 clones
+
+        for( size_t i=0; i<robots.size(); i++)
         {
             trajs.push_back( Move3D::Trajectory( robots[i] ) );
             trajs.back().push_back( robots[i]->getInitPos() );
