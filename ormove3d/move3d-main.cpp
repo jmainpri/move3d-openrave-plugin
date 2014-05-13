@@ -7,6 +7,7 @@
 #include <libmove3d/planners/API/Device/robot.hpp>
 #include <libmove3d/planners/API/Device/joint.hpp>
 #include <libmove3d/planners/API/project.hpp>
+#include <libmove3d/planners/API/scene.hpp>
 #include <libmove3d/planners/planner/planEnvironment.hpp>
 
 #define UNIX
@@ -42,6 +43,7 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("runrrt",boost::bind(&Move3dProblem::RunRRT,this,_1,_2),"returns true if ok");
     RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this,_1,_2),"returns true if ok");
     RegisterCommand("clonerobot",boost::bind(&Move3dProblem::CloneRobot,this,_1,_2),"returns true if ok");
+    RegisterCommand("setinitandgoal",boost::bind(&Move3dProblem::SetInitAndGoal,this,_1,_2),"returns true if ok");
 }
 
 void Move3dProblem::Destroy()
@@ -298,9 +300,15 @@ bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
             {
                 RobotBasePtr robot_clone = RaveCreateRobot( GetEnv() );
                 robot_clone->Clone( orRobot, 0 );
-                char c = i+48; // Perfect until 10 !!!!
-                robot_clone->SetName( orRobot->GetName() + "_" + std::string(&c) );
+                std::ostringstream convert;   // stream used for the conversion
+                convert << i;      // insert the textual representation of 'Number' in the characters in the stream
+                robot_clone->SetName( orRobot->GetName() + "_" + convert.str() );
+                robot_clone->Enable( false );
                 GetEnv()->Add( robot_clone );
+
+                Move3D::Robot* new_move3d_robot = new Move3D::Robot( robot_clone.get() );
+                new_move3d_robot->setUseLibmove3dStruct( false );
+                Move3D::global_Project->getActiveScene()->insertRobot( new_move3d_robot );
             }
 
             std::vector<RobotBasePtr> robots;
@@ -451,6 +459,59 @@ int Move3dProblem::main(const std::string& cmd)
         std::ostringstream out;
         std::istringstream q_goal( "jointgoals 7 0.2 -0.3 0.5 -0.6 -1.5 -1 0" );
         RunStomp( out, q_goal );
+    }
+
+    if( cmd == "run_test_3" )
+    {
+        std::string filename;
+        filename = "/home/jmainpri/catkin_ws_hrics/src/NRI-Human-Robot-Collaboration/hrcol_motion_planning/models/data/IRG_lab_with_human.env.xml";
+        GetEnv()->Load( filename );
+
+        RobotBasePtr robot = GetEnv()->GetRobot("ABBIE");
+        RobotBasePtr human = GetEnv()->GetRobot("HERAKLES_HUMAN");
+
+        TransformMatrix T = human->GetTransform();
+        T.trans.x=-1;  T.trans.y=1;  T.trans.z=0;
+        human->SetTransform(T);
+
+        std::string coll_checker_name = "VoxelColChecker" ;
+        CollisionCheckerBasePtr pchecker = RaveCreateCollisionChecker( GetEnv(), coll_checker_name.c_str() ); // create the module
+        if( !pchecker ) {
+            RAVELOG_ERROR( "Failed to create checker %s\n", coll_checker_name.c_str() );
+            return false;
+        }
+
+        std::ostringstream out;
+        std::istringstream iss;
+
+        // VOXEL COLLISON CHECKER
+        iss.clear(); iss.str("SetDimension robotcentered extent 2.0 2.0 2.0 offset 1.0 1.0 -1.0"); pchecker->SendCommand( out, iss );
+        iss.clear(); iss.str("SetCollisionPointsRadii radii 6 0.20 .14 .10 .08 .07 .05 activation 6 0 1 1 1 1 0"); pchecker->SendCommand( out, iss );
+        iss.clear(); iss.str("Initialize"); pchecker->SendCommand( out, iss );
+        iss.clear(); iss.str("SetDrawing off"); pchecker->SendCommand( out, iss );
+
+        GetEnv()->SetCollisionChecker( pchecker );
+
+        // MOVE3D
+        iss.clear(); iss.str("InitMove3dEnv"); SendCommand( out, iss );
+        iss.clear(); iss.str("LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_pr2_shelf"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter drawTraj 1"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter jntToDraw 5"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter stompDrawIteration 1"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter trajStompTimeLimit 2.5"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter trajOptimSmoothWeight 1000.0"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter trajOptimObstacWeight 10.0"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter trajOptimStdDev 0.002"); SendCommand( out, iss );
+
+        iss.clear(); iss.str("SetParameter trajStompRunParallel 1"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetParameter trajStompRunMultiple 1"); SendCommand( out, iss );
+        iss.clear(); iss.str("CloneRobot name ABBIE number 3"); SendCommand( out, iss );
+
+        iss.clear(); iss.str("SetInitAndGoal name ABBIE_0 jointinits 6 2.303 1.627 -0.168 -0.044 0.465 0.608 jointgoals 6 1.263 1.385 -0.609 -0.001 0.813 0.608"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetInitAndGoal name ABBIE_1 jointinits 6 2.303 1.627 -0.168 -0.044 0.465 0.608 jointgoals 6 0.660 1.385 -0.385 -0.001 0.465 0.608"); SendCommand( out, iss );
+        iss.clear(); iss.str("SetInitAndGoal name ABBIE_2 jointinits 6 2.303 1.627 -0.168 -0.044 0.465 0.608 jointgoals 6 0.197 1.524 -0.914 -0.001 0.813 0.608"); SendCommand( out, iss );
+
+        iss.clear(); iss.str("RunStomp name ABBIE jointinits 6 2.303 1.627 -0.168 -0.044 0.465 0.608 jointgoals 6 0.197 1.524 -0.914 -0.001 0.813 0.608"); SendCommand( out, iss );
     }
 
     //    const char* delim = " \r\n\t";

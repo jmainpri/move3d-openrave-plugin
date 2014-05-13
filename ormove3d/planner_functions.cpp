@@ -452,23 +452,30 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
     {
         cout << "RUN STOMP MULTI-THREAD" << endl;
         robots.clear();
-        do
+        for( int i=0;i<10;i++) // Warning: only authorize 10 clones
         {
-            char c = robots.size()+48; // Perfect until 10 !!!!
-            Move3D::Robot* clone = Move3D::global_Project->getActiveScene()->getRobotByName( robot->getName() + "_" + std::string(&c)  );
+            std::ostringstream convert;   // stream used for the conversion
+            convert << i;      // insert the textual representation of 'Number' in the characters in the stream
+            std::string name = robot->getName() + "_" + convert.str();
+            Move3D::Robot* robclone = Move3D::global_Project->getActiveScene()->getRobotByName( name );
 
-            if( clone != NULL )
-                robots.push_back( clone );
+            if( robclone != NULL )
+                robots.push_back( robclone );
             else
                 break;
         }
-        while( robots.size() < 10 ); // Warning: only authorize 10 clones
+
+        if( robots.empty() ){
+            cout << "robots.size() : " << robots.size() << endl;
+            return false;
+        }
 
         for( size_t i=0; i<robots.size(); i++)
         {
             trajs.push_back( Move3D::Trajectory( robots[i] ) );
             trajs.back().push_back( robots[i]->getInitPos() );
             trajs.back().push_back( robots[i]->getGoalPos() );
+            // cout << "Robot name : " << robots[i]->getName() << ", initial traj length : "  << trajs.back().getRangeMax() << endl;
         }
     }
     else {
@@ -485,7 +492,8 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
 
         for( int i=0;i<int(robots.size()); i++)
         {
-            boost::thread( &stomp_motion_planner::stompRun::run, &pool, i, trajs[i] );
+            cout << "Start thread " << i  << " with robot " << robots[i]->getName() << endl;
+             boost::thread( &stomp_motion_planner::stompRun::run, &pool, i, trajs[i] );
         }
 
         pool.isRunning();

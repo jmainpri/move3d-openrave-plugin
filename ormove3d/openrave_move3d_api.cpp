@@ -27,13 +27,13 @@ using std::cout;
 using std::endl;
 
 static OpenRAVE::EnvironmentBasePtr or_env_;
+static std::vector< std::pair< std::string, std::pair<Move3D::confPtr_t, Move3D::confPtr_t> > > configs_;
+static Move3D::Robot* active_robot_;
 
 void move3d_set_or_api_environment_pointer( OpenRAVE::EnvironmentBasePtr env_ptr )
 {
     or_env_ = env_ptr;
 }
-
-static std::vector< std::pair< std::string, std::pair<Move3D::confPtr_t, Move3D::confPtr_t> > > configs_;
 
 // ****************************************************************************************************
 // ****************************************************************************************************
@@ -79,14 +79,14 @@ void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<M
 
 void move3d_scene_set_active_robot( Move3D::Scene* sce, void* penv, const std::string& name )
 {
-
+    active_robot_ = sce->getRobotByName( name );
 }
 
 Move3D::Robot* move3d_scene_get_active_robot( Move3D::Scene* sce, void* penv )
 {
     cout << "sce : " << sce << endl;
     cout << "nb of robots : " << sce->getNumberOfRobots() << endl;
-    return sce->getRobot(0);
+    return active_robot_;
 }
 
 double move3d_scene_get_dmax( void* penv )
@@ -517,21 +517,25 @@ double move3d_joint_is_joint_dof_circular( const Move3D::Joint* J, int ithDoF )
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-int move3d_get_nb_collision_points()
+int move3d_get_nb_collision_points(Move3D::Robot* R)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    std::vector<OpenRAVE::RobotBasePtr> robots;
-
-    or_env_->GetRobots( robots );
-
-    if( robots.empty() ) {
-        RAVELOG_ERROR( "No robots in environment \n" );
+    OpenRAVE::RobotBasePtr orRobot = or_env_->GetRobot( R->getName() );
+    if( orRobot.get() == NULL ) {
+        RAVELOG_ERROR( "No robots with name %s in environment \n", R->getName().c_str() );
         return 0;
     }
 
+    return 16;
+
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
-    or_env_->CheckCollision( robots[0], report );
+
+    cout << "check collision for robot : " << orRobot->GetName() << endl;
+
+    or_env_->CheckCollision( orRobot, report );
+
+    cout << "contacts size : " << report->contacts.size() << endl;
 
     return report->contacts.size();
 }
@@ -539,6 +543,8 @@ int move3d_get_nb_collision_points()
 bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd& collision_point_potential, std::vector< std::vector<Eigen::Vector3d> >& collision_point_pos )
 {
     // cout << __PRETTY_FUNCTION__ << endl;
+
+    return true;
 
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
@@ -710,7 +716,7 @@ void move3d_set_or_api_functions_joint()
 void move3d_set_or_api_collision_space()
 {
     move3d_set_api_functions_collision_space( false );
-    move3d_set_fct_get_nb_collision_points( boost::bind( move3d_get_nb_collision_points ) );
+    move3d_set_fct_get_nb_collision_points( boost::bind( move3d_get_nb_collision_points, _1 ) );
     move3d_set_fct_get_config_collision_cost( boost::bind( move3d_get_config_collision_cost, _1, _2, _3, _4 ) ) ;
 }
 
