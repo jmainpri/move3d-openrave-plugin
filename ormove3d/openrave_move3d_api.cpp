@@ -23,9 +23,8 @@
 #include <iostream>
 #include <boost/bind.hpp>
 
-using namespace std;
-using namespace Eigen;
-using namespace Move3D;
+using std::cout;
+using std::endl;
 
 static OpenRAVE::EnvironmentBasePtr or_env_;
 
@@ -33,6 +32,8 @@ void move3d_set_or_api_environment_pointer( OpenRAVE::EnvironmentBasePtr env_ptr
 {
     or_env_ = env_ptr;
 }
+
+static std::vector< std::pair< std::string, std::pair<Move3D::confPtr_t, Move3D::confPtr_t> > > configs_;
 
 // ****************************************************************************************************
 // ****************************************************************************************************
@@ -42,7 +43,7 @@ void move3d_set_or_api_environment_pointer( OpenRAVE::EnvironmentBasePtr env_ptr
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<Robot*>& robots, std::string& active_robot )
+void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<Move3D::Robot*>& robots, std::string& active_robot )
 {
     OpenRAVE::EnvironmentBase* scene = static_cast<OpenRAVE::EnvironmentBase*>( penv );
     std::vector< OpenRAVE::RobotBasePtr > or_robots;
@@ -56,7 +57,7 @@ void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<R
     {
         cout << "Add new Robot to Scene : " << or_robots[i]->GetName() << endl;
 
-        robots.push_back( new Robot( or_robots[i].get() ) );
+        robots.push_back( new Move3D::Robot( or_robots[i].get() ) );
         robots.back()->setUseLibmove3dStruct( false );
     }
 
@@ -76,12 +77,12 @@ void* move3d_scene_constructor_fct( void* penv, std::string& name, std::vector<R
     return scene;
 }
 
-void move3d_scene_set_active_robot( Scene* sce, void* penv, const std::string& name )
+void move3d_scene_set_active_robot( Move3D::Scene* sce, void* penv, const std::string& name )
 {
 
 }
 
-Robot* move3d_scene_get_active_robot( Scene* sce, void* penv )
+Move3D::Robot* move3d_scene_get_active_robot( Move3D::Scene* sce, void* penv )
 {
     cout << "sce : " << sce << endl;
     cout << "nb of robots : " << sce->getNumberOfRobots() << endl;
@@ -95,7 +96,7 @@ double move3d_scene_get_dmax( void* penv )
 
 std::vector<double> move3d_scene_get_bounds( void* penv )
 {
-    vector<double> bounds(6);
+    std::vector<double> bounds(6);
     //    bounds[0] = scene->box.x1;
     //    bounds[1] = scene->box.x2;
     //    bounds[2] = scene->box.y1;
@@ -114,7 +115,7 @@ std::vector<double> move3d_scene_get_bounds( void* penv )
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-void* move3d_robot_constructor( Robot* R, void* robotPt, unsigned int& nb_dofs, bool copy, std::string& name, std::vector<Joint*>& joints )
+void* move3d_robot_constructor( Move3D::Robot* R, void* robotPt, unsigned int& nb_dofs, bool copy, std::string& name, std::vector<Move3D::Joint*>& joints )
 {
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>(robotPt);
 
@@ -126,15 +127,21 @@ void* move3d_robot_constructor( Robot* R, void* robotPt, unsigned int& nb_dofs, 
 
     for (size_t i=0; i<robot->GetJoints().size(); i++)
     {
-        joints.push_back( new Joint( R, static_cast<OpenRAVE::KinBody::Joint*>(robot->GetJoints()[i].get()), i , copy ) );
+        joints.push_back( new Move3D::Joint( R, static_cast<OpenRAVE::KinBody::Joint*>(robot->GetJoints()[i].get()), i , copy ) );
     }
 
     nb_dofs = robot->GetDOF();
 
+    std::pair<Move3D::confPtr_t, Move3D::confPtr_t> init_and_goal;
+    init_and_goal.first  = Move3D::confPtr_t(new Move3D::Configuration(NULL));
+    init_and_goal.second = Move3D::confPtr_t(new Move3D::Configuration(NULL));
+
+    configs_.push_back( std::make_pair(name, init_and_goal) );
+
     return robot;
 }
 
-Move3D::Trajectory move3d_robot_get_current_trajectory(Robot* R)
+Move3D::Trajectory move3d_robot_get_current_trajectory(Move3D::Robot* R)
 {
     Move3D::Trajectory traj;
     return traj;
@@ -142,9 +149,9 @@ Move3D::Trajectory move3d_robot_get_current_trajectory(Robot* R)
     //    return traj;
 }
 
-confPtr_t move3d_robot_shoot( confPtr_t q, bool sample_passive )
+Move3D::confPtr_t move3d_robot_shoot( Move3D::confPtr_t q, bool sample_passive )
 {
-    Robot* R = q->getRobot();
+    Move3D::Robot* R = q->getRobot();
     // p3d_shoot( static_cast<p3d_rob*>(R->getP3dRobotStruct()), q->getConfigStruct(), sample_passive );
 
     size_t njnt = R->getNumberOfJoints(), i, j, k;
@@ -152,7 +159,7 @@ confPtr_t move3d_robot_shoot( confPtr_t q, bool sample_passive )
 
     for( i=0; i<njnt; i++ )
     {
-        Joint* jntPt = R->getJoint(i);
+        Move3D::Joint* jntPt = R->getJoint(i);
 
         for( j=0; j<jntPt->getNumberOfDof(); j++ )
         {
@@ -175,7 +182,7 @@ confPtr_t move3d_robot_shoot( confPtr_t q, bool sample_passive )
     return q;
 }
 
-bool move3d_robot_set_and_update( Robot* R, const Configuration& q, bool without_free_flyers )
+bool move3d_robot_set_and_update( Move3D::Robot* R, const Move3D::Configuration& q, bool without_free_flyers )
 {
     std::vector<OpenRAVE::dReal> config( R->getNumberOfDofs() );
     for( size_t i=0;i<config.size();i++) config[i] = q[i];
@@ -183,12 +190,12 @@ bool move3d_robot_set_and_update( Robot* R, const Configuration& q, bool without
     return true;
 }
 
-bool move3d_robot_set_and_update_multisol( Robot* R, const Configuration& q )
+bool move3d_robot_set_and_update_multisol( Move3D::Robot* R, const Move3D::Configuration& q )
 {
     return move3d_robot_set_and_update( R, q, false );
 }
 
-void move3d_robot_set_and_update_with_constraints( Robot* R, const Configuration& q )
+void move3d_robot_set_and_update_with_constraints( Move3D::Robot* R, const Move3D::Configuration& q )
 {
     move3d_robot_set_and_update( R, q, false );
 }
@@ -198,7 +205,7 @@ void move3d_robot_dealocate_void( OpenRAVE::RobotBase* )
 
 }
 
-bool move3d_robot_is_in_collision( Robot* R )
+bool move3d_robot_is_in_collision( Move3D::Robot* R )
 {
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
 
@@ -214,49 +221,65 @@ bool move3d_robot_is_in_collision( Robot* R )
     return false;
 }
 
-bool move3d_robot_is_in_collision_with_env( Robot* R )
+bool move3d_robot_is_in_collision_with_env( Move3D::Robot* R )
 {
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
     return or_env_->CheckCollision(robot);
 }
 
-double move3d_robot_distance_to_env( Robot* R )
+double move3d_robot_distance_to_env( Move3D::Robot* R )
 {
     return 0.0;
 }
 
-double move3d_robot_distance_to_robot( Robot* R1 , Robot* R2 )
+double move3d_robot_distance_to_robot( Move3D::Robot* R1 , Move3D::Robot* R2 )
 {
     return 0.0;
 }
 
-confPtr_t move3d_robot_get_init_pos( Robot* R )
+Move3D::confPtr_t move3d_robot_get_init_pos( Move3D::Robot* R )
 {
+    for( size_t i=0; i<configs_.size(); i++ )
+        if( configs_[i].first == R->getName() ){
+            return configs_[i].second.first;
+        }
     return R->getNewConfig();
 }
 
-void move3d_robot_set_init_pos( Robot* R, const Configuration& q )
+void move3d_robot_set_init_pos( Move3D::Robot* R, const Move3D::Configuration& q )
 {
-
+    for( size_t i=0; i<configs_.size(); i++ )
+        if( configs_[i].first == R->getName() ){
+            configs_[i].second.first = Move3D::confPtr_t( new Move3D::Configuration(R, q.getConfigStructConst()) );
+            return;
+        }
 }
 
-confPtr_t move3d_robot_get_goal_pos( Robot* R )
+Move3D::confPtr_t move3d_robot_get_goal_pos( Move3D::Robot* R )
 {
+    for( size_t i=0; i<configs_.size(); i++ )
+        if( configs_[i].first == R->getName() ){
+            return configs_[i].second.second;
+        }
     return R->getNewConfig();
 }
 
-void move3d_robot_set_goal_pos( Robot* R, const Configuration& q )
+void move3d_robot_set_goal_pos( Move3D::Robot* R, const Move3D::Configuration& q )
 {
-
+    for( size_t i=0; i<configs_.size(); i++ )
+        if( configs_[i].first == R->getName() ){
+            configs_[i].second.second = Move3D::confPtr_t( new Move3D::Configuration(R, q.getConfigStructConst()) );
+            return;
+        }
 }
 
-confPtr_t move3d_robot_get_current_pos( Robot* R )
+Move3D::confPtr_t move3d_robot_get_current_pos( Move3D::Robot* R )
 {
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct());
     std::vector<OpenRAVE::dReal> q_tmp;
     robot->GetDOFValues( q_tmp );
 
-    confPtr_t q = R->getNewConfig();
+    Move3D::confPtr_t q = R->getNewConfig();
 
     for( size_t i=0;i<q_tmp.size();i++)
         (*q)[i] = q_tmp[i];
@@ -264,28 +287,28 @@ confPtr_t move3d_robot_get_current_pos( Robot* R )
     return q;
 }
 
-confPtr_t move3d_robot_get_new_pos( Robot* R )
+Move3D::confPtr_t move3d_robot_get_new_pos( Move3D::Robot* R )
 {
-    return (confPtr_t (new Configuration( R, move3d_configuration_simple_constructor( R ), true )));
+    return (Move3D::confPtr_t (new Move3D::Configuration( R, move3d_configuration_simple_constructor( R ), true )));
 }
 
-unsigned int move3d_robot_get_nb_active_joints( Robot* R )
+unsigned int move3d_robot_get_nb_active_joints( Move3D::Robot* R )
 {
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct());
     return robot->GetActiveDOF();
 }
 
-Joint* move3d_robot_get_ith_active_joint( Robot* R,  unsigned int ithActiveDoF, unsigned int& ithDofOnJoint )
+Move3D::Joint* move3d_robot_get_ith_active_joint( Move3D::Robot* R,  unsigned int ithActiveDoF, unsigned int& ithDofOnJoint )
 {
     unsigned int activeDof = 0;
 
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct());
-    const std::vector<Joint*>& joints = R->getJoints();
+    const std::vector<Move3D::Joint*>& joints = R->getJoints();
     const std::vector<int>& indices = robot->GetActiveDOFIndices();
 
     for(size_t i=0;i<joints.size();i++)
     {
-        Joint* jntPt = joints[i];
+        Move3D::Joint* jntPt = joints[i];
 
         for(size_t j=0; j<jntPt->getNumberOfDof(); j++)
         {
@@ -315,20 +338,20 @@ Joint* move3d_robot_get_ith_active_joint( Robot* R,  unsigned int ithActiveDoF, 
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-void* move3d_joint_constructor( Joint* J, void* jntPt, std::string& name )
+void* move3d_joint_constructor( Move3D::Joint* J, void* jntPt, std::string& name )
 {
     name = static_cast<OpenRAVE::KinBody::Joint*>(jntPt)->GetName();
     return static_cast<OpenRAVE::KinBody::Joint*>(jntPt);
 }
 
-Vector3d move3d_joint_get_vector_pos( const Joint* J )
+Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
 {
     OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
 
 //    For Puck (TODO FIX)
 //    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
 
-    Vector3d v;
+    Eigen::Vector3d v;
     v(0) = p[0];
     v(1) = p[1];
     v(2) = p[2];
@@ -338,7 +361,7 @@ Vector3d move3d_joint_get_vector_pos( const Joint* J )
     return v;
 }
 
-Transform3d move3d_joint_get_matrix_pos( const Joint* J )
+Eigen::Transform3d move3d_joint_get_matrix_pos( const Move3D::Joint* J )
 {
     OpenRAVE::KinBody::Joint* joint = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() );
     OpenRAVE::RaveTransformMatrix<double> T( joint->GetFirstAttached()->GetTransform() );
@@ -346,7 +369,7 @@ Transform3d move3d_joint_get_matrix_pos( const Joint* J )
     OpenRAVE::Vector right,up,dir,pos;
     T.Extract( right, up, dir, pos );
 
-    Transform3d t;
+    Eigen::Transform3d t;
 
     t(0,0) = right.x;
     t(1,0) = right.y;
@@ -371,7 +394,7 @@ Transform3d move3d_joint_get_matrix_pos( const Joint* J )
     return t;
 }
 
-void move3d_joint_shoot( Joint* J, Configuration& q, bool sample_passive )
+void move3d_joint_shoot( Move3D::Joint* J, Move3D::Configuration& q, bool sample_passive )
 {
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>( J->getRobot()->getRobotStruct() );
 
@@ -394,7 +417,7 @@ void move3d_joint_shoot( Joint* J, Configuration& q, bool sample_passive )
     }
 }
 
-double move3d_joint_get_joint_dof( const Joint* J, int ithDoF )
+double move3d_joint_get_joint_dof( const Move3D::Joint* J, int ithDoF )
 {
     OpenRAVE::KinBody::Joint* joint = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() );
     std::vector<OpenRAVE::dReal> values;
@@ -402,12 +425,12 @@ double move3d_joint_get_joint_dof( const Joint* J, int ithDoF )
     return values[ithDoF];
 }
 
-void move3d_joint_set_joint_dof( const Joint* J, int ithDoF, double value )
+void move3d_joint_set_joint_dof( const Move3D::Joint* J, int ithDoF, double value )
 {
     // p3d_jnt_set_dof( J->getP3dJointStruct(), ithDoF, value );
 }
 
-bool move3d_joint_is_joint_user( const Joint* J, int ithDoF )
+bool move3d_joint_is_joint_user( const Move3D::Joint* J, int ithDoF )
 {
     OpenRAVE::RobotBase* robot = static_cast<OpenRAVE::RobotBase*>( J->getRobot()->getRobotStruct() );
 
@@ -417,7 +440,7 @@ bool move3d_joint_is_joint_user( const Joint* J, int ithDoF )
     return std::find( indices.begin(), indices.end(), k ) != indices.end();
 }
 
-void move3d_joint_get_joint_bounds( const Joint* J, int ithDoF, double& vmin, double& vmax )
+void move3d_joint_get_joint_bounds( const Move3D::Joint* J, int ithDoF, double& vmin, double& vmax )
 {
     OpenRAVE::KinBody::Joint* joint = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() );
     std::vector<OpenRAVE::dReal> vLowerLimit;
@@ -427,24 +450,24 @@ void move3d_joint_get_joint_bounds( const Joint* J, int ithDoF, double& vmin, do
     vmax = vUpperLimit[ithDoF];
 }
 
-void move3d_joint_get_joint_rand_bounds( const Joint* J, int ithDoF, double& vmin, double& vmax )
+void move3d_joint_get_joint_rand_bounds( const Move3D::Joint* J, int ithDoF, double& vmin, double& vmax )
 {
     move3d_joint_get_joint_bounds( J, ithDoF, vmin, vmax );
 }
 
-int move3d_joint_get_nb_of_dofs( const Joint* J )
+int move3d_joint_get_nb_of_dofs( const Move3D::Joint* J )
 {
     OpenRAVE::KinBody::Joint* joint = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() );
     return joint->GetDOF();
 }
 
-int move3d_joint_get_index_of_first_joint( const Joint* J )
+int move3d_joint_get_index_of_first_joint( const Move3D::Joint* J )
 {
     OpenRAVE::KinBody::Joint* joint = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() );
     return joint->GetDOFIndex();
 }
 
-Joint* move3d_joint_get_previous_joint( const Joint* J, Robot* R )
+Move3D::Joint* move3d_joint_get_previous_joint( const Move3D::Joint* J, Move3D::Robot* R )
 {
     //    p3d_jnt* jntPt = (p3d_jnt*)(J->getP3dJointStruct());
     //    Joint* prevJnt=NULL; int found=0;
@@ -470,18 +493,18 @@ Joint* move3d_joint_get_previous_joint( const Joint* J, Robot* R )
     return NULL;
 }
 
-double move3d_joint_get_dist( const Joint* J )
+double move3d_joint_get_dist( const Move3D::Joint* J )
 {
     // return J->getP3dJointStruct()->dist;
     return 0.1;
 }
 
-double move3d_joint_is_joint_dof_angular( const Joint* J, int ithDoF )
+double move3d_joint_is_joint_dof_angular( const Move3D::Joint* J, int ithDoF )
 {
     return false;
 }
 
-double move3d_joint_is_joint_dof_circular( const Joint* J, int ithDoF )
+double move3d_joint_is_joint_dof_circular( const Move3D::Joint* J, int ithDoF )
 {
     return false;
 }

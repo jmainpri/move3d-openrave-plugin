@@ -112,10 +112,9 @@ bool Move3dProblem::SetParameter( std::istream& sinput )
     return true;
 }
 
-bool Move3dProblem::GetOptions( std::ostream& sout, std::istream& sinput )
+bool Move3dProblem::SetInitAndGoal( std::ostream& sout, std::istream& sinput )
 {
-    goals_.clear();
-
+    std::string name;
     std::string cmd;
     while(!sinput.eof())
     {
@@ -123,8 +122,13 @@ bool Move3dProblem::GetOptions( std::ostream& sout, std::istream& sinput )
         if( !sinput )
             break;
 
-        if( cmd == "jointgoals" )
+        if( cmd == "name" )
         {
+            sinput >> name;
+        }
+        else if( cmd == "jointgoals" )
+        {
+            goals_.clear();
             cout << cmd << endl;
             // note that this appends to goals, does not overwrite them
             size_t temp;
@@ -136,13 +140,65 @@ bool Move3dProblem::GetOptions( std::ostream& sout, std::istream& sinput )
                 // cout << "goal[" << i << "] : " << goals_[i] << endl;
             }
         }
-        else break;
-        if( !sinput ) {
-            RAVELOG_DEBUG("failed\n");
+        else if( cmd == "jointinits" )
+        {
+            inits_.clear();
+            cout << cmd << endl;
+            // note that this appends to goals, does not overwrite them
+            size_t temp;
+            sinput >> temp;
+            size_t oldsize = inits_.size();
+            inits_.resize(oldsize+temp);
+            for(size_t i = oldsize; i < oldsize+temp; i++) {
+                sinput >> inits_[i];
+                // cout << "goal[" << i << "] : " << goals_[i] << endl;
+            }
+        }
+        else if( !sinput ) {
+            RAVELOG_INFO("failed\n");
             sout << 0;
             return false;
         }
+        else break;
     }
+
+    // Get active dofs
+    RobotBasePtr orRobot = GetEnv()->GetRobot( name );
+    if( orRobot.get() == NULL ){
+        RAVELOG_INFO( "could not find openrave robot with name : %s\n", name.c_str() );
+        return false;
+    }
+
+    const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
+
+    // Get init configurations
+    if( indices.size() != inits_.size() ) {
+        RAVELOG_ERROR( "Error in setting init configuration, active %d, given %d\n", indices.size(), inits_.size() );
+        return false;
+    }
+
+    // Get goal configurations
+    if( indices.size() != goals_.size() ) {
+        RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
+        return false;
+    }
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getRobotByName( name );
+    if( robot == NULL ){
+        RAVELOG_INFO("No move3d robot with name %s\n", name.c_str() );
+        return false;
+    }
+
+    Move3D::confPtr_t q_tmp1 = robot->getNewConfig();
+    for(size_t i = 0; i < indices.size(); i++)
+        (*q_tmp1)[ indices[i] ] = inits_[i];
+
+    Move3D::confPtr_t q_tmp2 = robot->getNewConfig();
+    for(size_t i = 0; i < indices.size(); i++)
+        (*q_tmp2)[ indices[i] ] = goals_[i];
+
+    robot->setInitPos( *q_tmp1 );
+    robot->setGoalPos( *q_tmp2 );
 
     return true;
 }
@@ -196,47 +252,6 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
     outfile.close();
     // chmod( filename.c_str(), S_IRWXG | S_IRWXO | S_IRWXU ); //chmod 777
 
-    return true;
-}
-
-bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
-{
-    cout << "------------------------" << endl;
-    cout << __PRETTY_FUNCTION__ << endl;
-
-    if( !GetOptions( sout, sinput ) ){
-        return false;
-    }
-
-    move3d_draw_clear();
-
-    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
-    cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
-
-    Move3D::confPtr_t q_init = robot->getCurrentPos();
-    Move3D::confPtr_t q_goal = robot->getNewConfig();
-
-    // Set goal configurations
-    RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
-    const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
-    if( indices.size() != goals_.size() ) {
-        RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
-        return false;
-    }
-
-    for(size_t i = 0; i < indices.size(); i++)
-        (*q_goal)[ indices[i] ] = goals_[i];
-
-    Move3D::Trajectory* traj = or_runDiffusion( q_init, q_goal );
-
-    if( traj != NULL ){
-        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
-        CreateTraj( traj, orRobot, ptraj );
-        delete traj;
-        orRobot->GetController()->SetPath(ptraj);
-    }
-
-    RAVELOG_INFO("End RunRRT normally\n");
     return true;
 }
 
@@ -306,36 +321,54 @@ bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
+bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
+{
+    cout << "------------------------" << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    if( !SetInitAndGoal( sout, sinput ) ){
+        RAVELOG_INFO("Error in set init and goal\n");
+        return false;
+    }
+
+    move3d_draw_clear();
+
+    Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
+    cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
+
+    // Start RRT
+    Move3D::Trajectory* traj = or_runDiffusion( robot->getInitPos(), robot->getGoalPos() );
+
+    if( traj != NULL ){
+        RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
+        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
+        CreateTraj( traj, orRobot, ptraj );
+        delete traj;
+        orRobot->GetController()->SetPath(ptraj);
+    }
+
+    RAVELOG_INFO("End RunRRT normally\n");
+    return true;
+}
+
 bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
 {
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
-    if( !GetOptions( sout, sinput ) ){
+    if( !SetInitAndGoal( sout, sinput ) ){
+        RAVELOG_INFO("Error in set init and goal\n");
         return false;
     }
 
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
 
-    Move3D::confPtr_t q_init = robot->getCurrentPos();
-    Move3D::confPtr_t q_goal = robot->getNewConfig();
-
-    // Set goal configurations
-    RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
-    const std::vector<int>& indices = orRobot->GetActiveDOFIndices();
-    if( indices.size() != goals_.size() ) {
-        RAVELOG_ERROR( "Error in setting goal configuration, active %d, given %d\n", indices.size(), goals_.size() );
-        return false;
-    }
-
-    for(size_t i = 0; i < indices.size(); i++)
-        (*q_goal)[ indices[i] ] = goals_[i];
-
     // Start Stomp
-    Move3D::Trajectory* traj = or_runStomp( q_init, q_goal );
+    Move3D::Trajectory* traj = or_runStomp( robot->getInitPos(), robot->getGoalPos() );
 
     if( traj != NULL ){
+        RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
         TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
         CreateTraj( traj, orRobot, ptraj );
         delete traj;

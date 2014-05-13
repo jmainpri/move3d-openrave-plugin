@@ -450,8 +450,8 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
 
     if( is_parallel && is_multiple )
     {
+        cout << "RUN STOMP MULTI-THREAD" << endl;
         robots.clear();
-
         do
         {
             char c = robots.size()+48; // Perfect until 10 !!!!
@@ -472,6 +472,7 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
         }
     }
     else {
+        cout << "RUN STOMP NORMAL" << endl;
         robots.push_back( robot );
     }
 
@@ -493,6 +494,7 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
     {
         trajs.clear();
         trajs.push_back( Move3D::Trajectory( robot ) );
+
         trajs[0].push_back( q_init );
         trajs[0].push_back( q_goal );
 

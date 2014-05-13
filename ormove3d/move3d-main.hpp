@@ -28,13 +28,14 @@ private:
     bool InitMove3dEnv();
     bool LoadConfigFile( std::istream& sinput );
     bool SetParameter( std::istream& sinput );
-    bool GetOptions( std::ostream& sout, std::istream& sinput );
+    bool SetInitAndGoal( std::ostream& sout, std::istream& sinput );
     bool RunRRT( std::ostream& sout, std::istream& sinput );
     bool RunStomp( std::ostream& sout, std::istream& sinput );
     bool CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj );
     bool CloneRobot( std::ostream& sout, std::istream& sinput );
 
     std::vector<dReal> goals_;
+    std::vector<dReal> inits_;
     std::vector<RobotBasePtr> robotclones_;
 //    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
 };
