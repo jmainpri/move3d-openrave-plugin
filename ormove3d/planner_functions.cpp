@@ -361,7 +361,7 @@ Move3D::Trajectory* move3d_run_rrt( Move3D::Robot* rob, Move3D::confPtr_t q_sour
 /**
  * Run Diffusion
  */
-Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
+std::vector<Move3D::Trajectory*> or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal )
 {
     cout << "Run Diffusion" << endl;
 
@@ -369,10 +369,10 @@ Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t
     if( robot == NULL )
     {
         cout << "robot not defined" << endl;
-        return NULL;
+        return std::vector<Move3D::Trajectory*>();
     }
 
-    Move3D::Trajectory* path = NULL;
+    std::vector<Move3D::Trajectory*> solutions;
 //    try
     {
         p3d_SetStopValue(FALSE);
@@ -389,7 +389,7 @@ Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t
         }
         else
         {
-            path = move3d_run_rrt( robot, q_init, q_goal );
+            solutions.push_back( move3d_run_rrt( robot, q_init, q_goal ) );
         }
 
         gettimeofday(&tim, NULL);
@@ -422,10 +422,10 @@ Move3D::Trajectory* or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t
 //        ENV.setBool(Env::isRunning,false);
 //    }
 
-    return path;
+    return solutions;
 }
 
-Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
+std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
 {
     cout << "Run Stomp" << endl;
 
@@ -433,12 +433,12 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
     if( robot == NULL )
     {
         cout << "robot not defined" << endl;
-        return false;
+        return std::vector<Move3D::Trajectory*>();
     }
 
     std::vector<Move3D::Robot*> robots;
     std::vector<Move3D::Trajectory> trajs;
-    Move3D::Trajectory* path = NULL;
+    std::vector<Move3D::Trajectory*> solutions;
 
     // TODO see to remove this
     traj_optim_initScenario();
@@ -467,7 +467,7 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
 
         if( robots.empty() ){
             cout << "robots.size() : " << robots.size() << endl;
-            return false;
+            return std::vector<Move3D::Trajectory*>();
         }
 
         for( size_t i=0; i<robots.size(); i++)
@@ -497,6 +497,9 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
         }
 
         pool.isRunning();
+
+        for( int i=0;i<int(robots.size()); i++)
+            solutions.push_back( new Move3D::Trajectory( pool.getBestTrajectory(i) ) );
     }
     else // Non-parallel case
     {
@@ -507,13 +510,13 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
         trajs[0].push_back( q_goal );
 
         if( pool.run( 0, trajs[0] ) )
-            path = new Move3D::Trajectory( pool.getBestTrajectory(0) );
+            solutions.push_back( new Move3D::Trajectory( pool.getBestTrajectory(0) ) );
         else
-            path = new Move3D::Trajectory( trajs[0] );
+            solutions.push_back( new Move3D::Trajectory( trajs[0] ) );
     }
 
     // Uncomment for parallel stomps
     // pool.setRobotPool( 0, robots );
 
-    return path;
+    return solutions;
 }

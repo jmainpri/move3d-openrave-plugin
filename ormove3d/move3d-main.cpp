@@ -242,7 +242,7 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
 //            vtraj_data.push_back( 0.1 );
 //        }
 
-        vtraj_data.push_back( 0.2 ); // Time stamp
+        vtraj_data.push_back( 0.03 ); // Time stamp
     }
 
     ptraj->Insert( ptraj->GetNumWaypoints(), vtraj_data, confspec );
@@ -303,8 +303,6 @@ bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
 
             RobotBasePtr robot_clone = envclones_.back()->GetRobot( name );
 
-            envclones_.back()->Add( GetEnv()->GetViewer() );
-
             std::ostringstream convert;   // stream used for the conversion
             convert << i;      // insert the textual representation of 'Number' in the characters in the stream
             robot_clone->SetName( name + "_" + convert.str() );
@@ -340,6 +338,25 @@ bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
+void Move3dProblem::PlayTrajectories (std::string robot_name, const std::vector<Move3D::Trajectory*>& trajs)
+{
+    if( !trajs.empty() )
+    {
+        RobotBasePtr orRobot = GetEnv()->GetRobot( robot_name );
+        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
+
+        for( size_t i=0;i<trajs.size();i++)
+        {
+            CreateTraj( trajs[i], orRobot, ptraj );
+            delete trajs[i];
+            orRobot->GetController()->SetPath(ptraj);
+
+            while( !orRobot->GetController()->IsDone() ) // TODO remove or set from interface
+                usleep(100);
+        }
+    }
+}
+
 bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
 {
     cout << "------------------------" << endl;
@@ -356,15 +373,9 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
 
     // Start RRT
-    Move3D::Trajectory* traj = or_runDiffusion( robot->getInitPos(), robot->getGoalPos() );
+    std::vector<Move3D::Trajectory*> solutions = or_runDiffusion( robot->getInitPos(), robot->getGoalPos() );
 
-    if( traj != NULL ){
-        RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
-        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
-        CreateTraj( traj, orRobot, ptraj );
-        delete traj;
-        orRobot->GetController()->SetPath(ptraj);
-    }
+    PlayTrajectories( robot->getName(), solutions );
 
     RAVELOG_INFO("End RunRRT normally\n");
     return true;
@@ -386,15 +397,9 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
 
     // Start Stomp
-    Move3D::Trajectory* traj = or_runStomp( robot->getInitPos(), robot->getGoalPos() );
+    std::vector<Move3D::Trajectory*> solutions = or_runStomp( robot->getInitPos(), robot->getGoalPos() );
 
-    if( traj != NULL ){
-        RobotBasePtr orRobot = GetEnv()->GetRobot( robot->getName() );
-        TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
-        CreateTraj( traj, orRobot, ptraj );
-        delete traj;
-        orRobot->GetController()->SetPath(ptraj);
-    }
+    PlayTrajectories( robot->getName(), solutions );
 
     RAVELOG_INFO("End Stomp normally\n");
     return true;
