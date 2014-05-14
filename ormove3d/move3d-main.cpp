@@ -166,6 +166,15 @@ bool Move3dProblem::SetInitAndGoal( std::ostream& sout, std::istream& sinput )
 
     // Get active dofs
     RobotBasePtr orRobot = GetEnv()->GetRobot( name );
+
+    if( orRobot.get() == NULL )
+    {
+        for(size_t j=0; j<envclones_.size(); j++){
+            orRobot = envclones_[j]->GetRobot( name );
+            if( orRobot.get() )
+                break;
+        }
+    }
     if( orRobot.get() == NULL ){
         RAVELOG_INFO( "could not find openrave robot with name : %s\n", name.c_str() );
         return false;
@@ -284,42 +293,44 @@ bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
         }
     }
 
-    // Remove all robot clones from environement
-    for( size_t i=0; robotclones_.size(); i++) {
-        cout << "Remove robot " << robotclones_[i]->GetName() << " from environment" << endl;
-        GetEnv()->Remove( robotclones_[i] );
-    }
-    robotclones_.clear();
+    envclones_.clear();
 
     if( number > 0 && number < 10 )
     {
-        RobotBasePtr orRobot = GetEnv()->GetRobot( name );
-        if( orRobot.get() != NULL )
+        for(size_t i=0; i<number; i++)
         {
-            for(size_t i=0; i<number; i++)
-            {
-                RobotBasePtr robot_clone = RaveCreateRobot( GetEnv() );
-                robot_clone->Clone( orRobot, 0 );
-                std::ostringstream convert;   // stream used for the conversion
-                convert << i;      // insert the textual representation of 'Number' in the characters in the stream
-                robot_clone->SetName( orRobot->GetName() + "_" + convert.str() );
-                robot_clone->Enable( false );
-                GetEnv()->Add( robot_clone );
+            envclones_.push_back( GetEnv()->CloneSelf(Clone_Bodies) );
 
-                Move3D::Robot* new_move3d_robot = new Move3D::Robot( robot_clone.get() );
-                new_move3d_robot->setUseLibmove3dStruct( false );
-                Move3D::global_Project->getActiveScene()->insertRobot( new_move3d_robot );
-            }
+            RobotBasePtr robot_clone = envclones_.back()->GetRobot( name );
+
+            envclones_.back()->Add( GetEnv()->GetViewer() );
+
+            std::ostringstream convert;   // stream used for the conversion
+            convert << i;      // insert the textual representation of 'Number' in the characters in the stream
+            robot_clone->SetName( name + "_" + convert.str() );
+            // robot_clone->Enable( false );
+
+            Move3D::Robot* new_move3d_robot = new Move3D::Robot( robot_clone.get() );
+            new_move3d_robot->setUseLibmove3dStruct( false );
+            Move3D::global_Project->getActiveScene()->insertRobot( new_move3d_robot );
+
+            move3d_or_api_add_handles();
+        }
+
+        cout << "Environment created " << endl;
+
+        for(size_t j=0; j<envclones_.size(); j++)
+        {
+            cout << "--- Enviroment " << j << endl;
 
             std::vector<RobotBasePtr> robots;
-            GetEnv()->GetRobots( robots );
+            envclones_[j]->GetRobots( robots );
+
             for(size_t i = 0; i<robots.size(); i++)
                 cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
         }
-        else {
-            cout << "Robot name : " << name << " counld not be found in enviroment" << endl;
-            return false;
-        }
+
+        move3d_set_or_api_environment_clones_pointer( envclones_ );
     }
     else {
         cout << "Wrong number of robots" << endl;
@@ -339,7 +350,7 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
         return false;
     }
 
-    move3d_draw_clear();
+    move3d_or_api_add_handles();
 
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
@@ -368,6 +379,8 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
         RAVELOG_INFO("Error in set init and goal\n");
         return false;
     }
+
+    move3d_or_api_add_handles();
 
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;

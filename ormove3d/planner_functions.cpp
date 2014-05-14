@@ -475,7 +475,7 @@ Move3D::Trajectory* or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_g
             trajs.push_back( Move3D::Trajectory( robots[i] ) );
             trajs.back().push_back( robots[i]->getInitPos() );
             trajs.back().push_back( robots[i]->getGoalPos() );
-            // cout << "Robot name : " << robots[i]->getName() << ", initial traj length : "  << trajs.back().getRangeMax() << endl;
+            cout << "Robot name : " << robots[i]->getName() << ", initial traj length : "  << trajs.back().getRangeMax() << endl;
         }
     }
     else {

@@ -36,7 +36,8 @@ private:
 
     std::vector<dReal> goals_;
     std::vector<dReal> inits_;
-    std::vector<RobotBasePtr> robotclones_;
+    std::vector<EnvironmentBasePtr> envclones_;
+//    std::vector<RobotBasePtr> robotclones_;
 //    std::vector<dReal> starts_; // TODO (take a different start configuration as input)
 };
 

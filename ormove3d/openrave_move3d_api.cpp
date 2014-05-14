@@ -27,12 +27,34 @@ using std::cout;
 using std::endl;
 
 static OpenRAVE::EnvironmentBasePtr or_env_;
+static std::vector<OpenRAVE::EnvironmentBasePtr> or_env_clones_;
+static std::vector< std::vector< boost::shared_ptr<void> > > graphptr_;
 static std::vector< std::pair< std::string, std::pair<Move3D::confPtr_t, Move3D::confPtr_t> > > configs_;
 static Move3D::Robot* active_robot_;
 
 void move3d_set_or_api_environment_pointer( OpenRAVE::EnvironmentBasePtr env_ptr )
 {
     or_env_ = env_ptr;
+}
+
+void move3d_set_or_api_environment_clones_pointer( std::vector<OpenRAVE::EnvironmentBasePtr> env_clones )
+{
+    or_env_clones_ = env_clones;
+}
+
+void move3d_or_api_environment_clones_clear()
+{
+    or_env_clones_.clear();
+}
+
+void move3d_or_api_add_handles()
+{
+    graphptr_.push_back( std::vector< boost::shared_ptr<void> >() );
+}
+
+void move3d_or_api_clear_all_handles()
+{
+    graphptr_.clear();
 }
 
 // ****************************************************************************************************
@@ -211,7 +233,17 @@ bool move3d_robot_is_in_collision( Move3D::Robot* R )
 
     if( !robot->CheckSelfCollision() )
     {
-        if( or_env_->CheckCollision(robot) )
+        OpenRAVE::EnvironmentBasePtr env;
+        int lastChar = *R->getName().rbegin() - 48;
+        if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+        {
+            lastChar = 0;
+            env = or_env_;
+        }
+        else
+            env  = or_env_clones_[lastChar];
+
+        if( env->CheckCollision(robot) )
             return true;
     }
     else {
@@ -224,7 +256,18 @@ bool move3d_robot_is_in_collision( Move3D::Robot* R )
 bool move3d_robot_is_in_collision_with_env( Move3D::Robot* R )
 {
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
-    return or_env_->CheckCollision(robot);
+
+    OpenRAVE::EnvironmentBasePtr env;
+    int lastChar = *R->getName().rbegin() - 48;
+    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+    {
+        lastChar = 0;
+        env = or_env_;
+    }
+    else
+        env  = or_env_clones_[lastChar];
+
+    return env->CheckCollision(robot);
 }
 
 double move3d_robot_distance_to_env( Move3D::Robot* R )
@@ -521,19 +564,17 @@ int move3d_get_nb_collision_points(Move3D::Robot* R)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    OpenRAVE::RobotBasePtr orRobot = or_env_->GetRobot( R->getName() );
+    int lastChar = *R->getName().rbegin() - 48;
+
+    OpenRAVE::RobotBasePtr orRobot = ( lastChar < 0 || lastChar >= int(or_env_clones_.size()) ? or_env_ : or_env_clones_[lastChar])->GetRobot( R->getName() );
     if( orRobot.get() == NULL ) {
         RAVELOG_ERROR( "No robots with name %s in environment \n", R->getName().c_str() );
         return 0;
     }
 
-    return 16;
-
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
 
-    cout << "check collision for robot : " << orRobot->GetName() << endl;
-
-    or_env_->CheckCollision( orRobot, report );
+    ( lastChar < 0 || lastChar >= int(or_env_clones_.size()) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( orRobot, report );
 
     cout << "contacts size : " << report->contacts.size() << endl;
 
@@ -544,12 +585,12 @@ bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd&
 {
     // cout << __PRETTY_FUNCTION__ << endl;
 
-    return true;
-
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
 
-    bool in_collision = or_env_->CheckCollision( robot, report );
+    int lastChar = *R->getName().rbegin() - 48; // lastChar, only works until 10
+//    cout << "lastChar : " << lastChar << " , "  << *R->getName().rbegin() << endl;
+    bool in_collision = ( lastChar < 0 || lastChar >= int(or_env_clones_.size()) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( robot, report );
 
     Eigen::Vector3d p;
 
@@ -585,14 +626,15 @@ bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd&
 // ****************************************************************************************************
 // ****************************************************************************************************
 
-std::vector< boost::shared_ptr<void> > graphptr;
-
-void move3d_draw_clear()
+void move3d_draw_clear(Move3D::Robot* R)
 {
-    graphptr.clear();
+    int lastChar = *R->getName().rbegin() - 48;
+    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+        lastChar = 0;
+    graphptr_[lastChar].clear();
 }
 
-void move3d_draw_sphere_fct( double x, double y, double z, double radius )
+void move3d_draw_sphere_fct( double x, double y, double z, double radius, Move3D::Robot* R )
 {
     std::vector<OpenRAVE::RaveVector<float> > vpoints;
     OpenRAVE::RaveVector<float> pnt(x,y,z);
@@ -603,15 +645,27 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius )
     vcolors.push_back(0);
     vcolors.push_back(1);
 
-    OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
+    OpenRAVE::EnvironmentBasePtr env;
+    int lastChar = *R->getName().rbegin() - 48;
+    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+    {
+        lastChar = 0;
+        env = or_env_;
+    }
+    else
+        env  = or_env_clones_[lastChar];
 
-    graphptr.push_back( fig );
+    OpenRAVE::GraphHandlePtr fig = env->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
+
+    graphptr_[lastChar].push_back( fig );
+
+//    cout << "draw on thread : " << lastChar << endl;
 
     // cout << "Add sphere : " << x << " , " << y << " , " << z << endl;
     // g3d_draw_solid_sphere( x, y, z, radius, 10 );
 }
 
-void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, double y2, double z2, int color, double *color_vect )
+void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, double y2, double z2, int color, double *color_vect, Move3D::Robot* R )
 {
     int nb_points = 2;
     float* ppoints = new float[3*nb_points];
@@ -633,11 +687,23 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
         colors[2] = color_vect[2];
     }
 
-    OpenRAVE::GraphHandlePtr fig = or_env_->drawlinelist( ppoints, nb_points, 3*sizeof(float), 3.0, colors );
+    OpenRAVE::EnvironmentBasePtr env;
+    int lastChar = *R->getName().rbegin() - 48;
+    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+    {
+        lastChar = 0;
+        env = or_env_;
+    }
+    else
+        env  = or_env_clones_[lastChar];
+
+    OpenRAVE::GraphHandlePtr fig = env->drawlinelist( ppoints, nb_points, 3*sizeof(float), 3.0, colors );
 
     delete ppoints;
 
-    graphptr.push_back( fig );
+    graphptr_[lastChar].push_back( fig );
+
+//    cout << "draw on thread : " << lastChar << endl;
 
     // cout << "Add line : " << x1 << " , " << y1 << " , " << z1 << endl;
     // g3d_drawOneLine( x1, y1, z1, x2, y2, z2, color, color_vect );
@@ -722,8 +788,8 @@ void move3d_set_or_api_collision_space()
 
 void move3d_set_or_api_functions_draw()
 {
-    move3d_set_fct_draw_sphere( boost::bind( move3d_draw_sphere_fct, _1, _2, _3, _4 ) );
-    move3d_set_fct_draw_one_line( boost::bind( move3d_draw_one_line_fct, _1, _2, _3, _4, _5, _6, _7, _8 ) );
-    move3d_set_fct_draw_clear_handles( boost::bind( move3d_draw_clear ) );
+    move3d_or_api_add_handles();
+    move3d_set_fct_draw_sphere( boost::bind( move3d_draw_sphere_fct, _1, _2, _3, _4, _5 ) );
+    move3d_set_fct_draw_one_line( boost::bind( move3d_draw_one_line_fct, _1, _2, _3, _4, _5, _6, _7, _8, _9 ) );
+    move3d_set_fct_draw_clear_handles( boost::bind( move3d_draw_clear, _1 ) );
 }
-
