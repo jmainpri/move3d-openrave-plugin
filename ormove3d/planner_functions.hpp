@@ -5,6 +5,6 @@
 #include <libmove3d/planners/API/Trajectory/trajectory.hpp>
 
 std::vector<Move3D::Trajectory*> or_runDiffusion( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  );
-std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  );
+std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal, std::vector<bool> active_clones = std::vector<bool>() );
 
 #endif // PLANNER_FUNCTIONS_HPP

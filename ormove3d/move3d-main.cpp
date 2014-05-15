@@ -17,6 +17,8 @@
 
 #include <libmove3d/graphic/proto/g3d_newWindow.hpp>
 
+#include <boost/filesystem.hpp>
+
 //! move3d studio functions (remove when transfering loading function
 //-----------------------------------------------
 std::string move3d_studio_settings_file = ".save_interface_params";
@@ -44,6 +46,13 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("runstomp",boost::bind(&Move3dProblem::RunStomp,this,_1,_2),"returns true if ok");
     RegisterCommand("clonerobot",boost::bind(&Move3dProblem::CloneRobot,this,_1,_2),"returns true if ok");
     RegisterCommand("setinitandgoal",boost::bind(&Move3dProblem::SetInitAndGoal,this,_1,_2),"returns true if ok");
+    RegisterCommand("setplaytrajectories",boost::bind(&Move3dProblem::SetPlayTrajectories,this,_1,_2),"returns true if ok");
+
+    current_directory_ = "";
+    play_tajectories_ = false;
+
+    boost::filesystem::path full_path( boost::filesystem::current_path() );
+    std::cout << "Current path is : " << full_path << std::endl;
 }
 
 void Move3dProblem::Destroy()
@@ -71,33 +80,26 @@ bool Move3dProblem::InitMove3dEnv()
     move3d_set_or_api_collision_space();
     move3d_set_or_api_functions_draw();
 
+    move3d_or_api_add_handles();
+
     init_all_draw_functions_dummy();
 
     Move3D::global_Project = new Move3D::Project(new Move3D::Scene( GetEnv().get() ));
-    //    return ( Move3D::global_Project != NULL );
     return true;
 }
 
 bool Move3dProblem::LoadConfigFile( std::istream& sinput )
 {
-    cout << "------------------------" << endl;
-    cout << __PRETTY_FUNCTION__ << endl;
-
     std::string cmd;
     sinput >> cmd;
 
     cout << "Load file : " << cmd <<  "'" << endl;
-
     qt_loadInterfaceParameters( false, cmd, false );
-
     return true;
 }
 
 bool Move3dProblem::SetParameter( std::istream& sinput )
 {
-//    cout << "------------------------" << endl;
-//    cout << __PRETTY_FUNCTION__ << endl;
-
     std::string name;
     double value;
 
@@ -108,9 +110,30 @@ bool Move3dProblem::SetParameter( std::istream& sinput )
     sinput >> value;
 
     cout << "Set parameter name : " << name <<  " , value : " << value << endl;
-
     qt_setParameter( name, value );
+    return true;
+}
 
+bool Move3dProblem::SetPlayTrajectories( std::ostream& sout, std::istream& sinput )
+{
+    std::string cmd;
+    while(!sinput.eof())
+    {
+        sinput >> cmd;
+        if( !sinput )
+            break;
+
+        if( cmd == "play" )
+        {
+            sinput >> play_tajectories_;
+        }
+        else if(  cmd == "dir" )
+        {
+            sinput >> current_directory_;
+        }
+    }
+
+    cout << "Set play trajectories : " << play_tajectories_ << endl;
     return true;
 }
 
@@ -154,6 +177,20 @@ bool Move3dProblem::SetInitAndGoal( std::ostream& sout, std::istream& sinput )
             for(size_t i = oldsize; i < oldsize+temp; i++) {
                 sinput >> inits_[i];
                 // cout << "goal[" << i << "] : " << goals_[i] << endl;
+            }
+        }
+        else if( cmd == "active_clones" )
+        {
+            active_clones_.clear();
+            cout << cmd << endl;
+            // note that this appends to goals, does not overwrite them
+            size_t temp;
+            sinput >> temp;
+            active_clones_.resize(temp,false);
+            for(size_t i=0; i<temp; i++) {
+                int tmp_bool;
+                sinput >> tmp_bool;
+                active_clones_[i] = tmp_bool;
             }
         }
         else if( !sinput ) {
@@ -214,14 +251,93 @@ bool Move3dProblem::SetInitAndGoal( std::ostream& sout, std::istream& sinput )
     return true;
 }
 
-bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj )
+bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
+{
+    std::string name;
+    size_t number = 0;
+    std::string cmd;
+    while(!sinput.eof())
+    {
+        sinput >> cmd;
+        if( !sinput )
+            break;
+
+        if( cmd == "name" )
+        {
+            sinput >> name;
+        }
+        else if( cmd == "number" )
+        {
+            sinput >> number;
+        }
+        else break;
+        if( !sinput ) {
+            RAVELOG_DEBUG("failed\n");
+            sout << 0;
+            return false;
+        }
+    }
+
+    envclones_.clear();
+    active_clones_.clear();
+
+    if( number > 0 && number < 10 )
+    {
+        active_clones_.resize(number,false);
+
+        for(size_t i=0; i<number; i++)
+        {
+            envclones_.push_back( GetEnv()->CloneSelf(Clone_Bodies) );
+
+            // Get robot in new environment
+            RobotBasePtr robot_clone = envclones_.back()->GetRobot( name );
+
+            // Set name of new robot
+            robot_clone->SetName( name + "_" + ToStr<int>(i) );
+            // robot_clone->Enable( false );
+
+            // Add to move3d scene
+            Move3D::Robot* new_move3d_robot = new Move3D::Robot( robot_clone.get() );
+            new_move3d_robot->setUseLibmove3dStruct( false );
+            Move3D::global_Project->getActiveScene()->insertRobot( new_move3d_robot );
+
+            // Add handles for this environment
+            move3d_or_api_add_handles();
+
+            // Set clone active for planning
+            active_clones_[i] = true;
+        }
+
+        cout << "Environment created " << endl;
+
+        for(size_t j=0; j<envclones_.size(); j++)
+        {
+            cout << "--- Enviroment " << j << endl;
+
+            std::vector<RobotBasePtr> robots;
+            envclones_[j]->GetRobots( robots );
+
+            for(size_t i = 0; i<robots.size(); i++)
+                cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
+        }
+
+        move3d_set_or_api_environment_clones_pointer( envclones_ );
+    }
+    else {
+        cout << "Wrong number of robots" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, TrajectoryBasePtr ptraj, int id )
 {
     ConfigurationSpecification confspec =  robot->GetActiveConfigurationSpecification();
     ConfigurationSpecification::Group& group = confspec.GetGroupFromName("joint_values");
     group.interpolation = "linear";
     confspec.AddDerivativeGroups( 0, true ); // Add joint_velocity
-
-    cout << confspec << endl;
+//    cout << confspec << endl;
 
     ptraj->Init( confspec );
 
@@ -255,104 +371,50 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
 
     cout << "traj number of way points : " << ptraj->GetNumWaypoints() << endl;
 
-    // Save to file
-    std::string filename( "traj.txt" );
+    std::string filename = current_directory_ + "traj_" + ToStr<int>(id) + ".txt";
+
+    // Save trajectory to file
     std::ofstream outfile( filename.c_str(), std::ios::out );
     outfile.precision(16);
     ptraj->serialize( outfile );
     outfile.close();
     // chmod( filename.c_str(), S_IRWXG | S_IRWXO | S_IRWXU ); //chmod 777
 
+    RAVELOG_INFO( "Save trajectory to file : %s\n", filename.c_str() );
     return true;
 }
 
-bool Move3dProblem::CloneRobot( std::ostream& sout, std::istream& sinput )
-{
-    std::string name;
-    size_t number = 0;
-    std::string cmd;
-    while(!sinput.eof())
-    {
-        sinput >> cmd;
-        if( !sinput )
-            break;
-
-        if( cmd == "name" )
-        {
-            sinput >> name;
-        }
-        else if( cmd == "number" )
-        {
-            sinput >> number;
-        }
-        else break;
-        if( !sinput ) {
-            RAVELOG_DEBUG("failed\n");
-            sout << 0;
-            return false;
-        }
-    }
-
-    envclones_.clear();
-
-    if( number > 0 && number < 10 )
-    {
-        for(size_t i=0; i<number; i++)
-        {
-            envclones_.push_back( GetEnv()->CloneSelf(Clone_Bodies) );
-
-            RobotBasePtr robot_clone = envclones_.back()->GetRobot( name );
-
-            std::ostringstream convert;   // stream used for the conversion
-            convert << i;      // insert the textual representation of 'Number' in the characters in the stream
-            robot_clone->SetName( name + "_" + convert.str() );
-            // robot_clone->Enable( false );
-
-            Move3D::Robot* new_move3d_robot = new Move3D::Robot( robot_clone.get() );
-            new_move3d_robot->setUseLibmove3dStruct( false );
-            Move3D::global_Project->getActiveScene()->insertRobot( new_move3d_robot );
-
-            move3d_or_api_add_handles();
-        }
-
-        cout << "Environment created " << endl;
-
-        for(size_t j=0; j<envclones_.size(); j++)
-        {
-            cout << "--- Enviroment " << j << endl;
-
-            std::vector<RobotBasePtr> robots;
-            envclones_[j]->GetRobots( robots );
-
-            for(size_t i = 0; i<robots.size(); i++)
-                cout << "robots->GetName() is : "  << robots[i]->GetName() << endl;
-        }
-
-        move3d_set_or_api_environment_clones_pointer( envclones_ );
-    }
-    else {
-        cout << "Wrong number of robots" << endl;
-        return false;
-    }
-
-    return true;
-}
-
-void Move3dProblem::PlayTrajectories (std::string robot_name, const std::vector<Move3D::Trajectory*>& trajs)
+void Move3dProblem::SaveAndPlayTrajectories(std::string robot_name, const std::vector<Move3D::Trajectory*>& trajs)
 {
     if( !trajs.empty() )
     {
+        std::vector<int> ids; // Get ids for saving trajectories
+        if( trajs.size() <= active_clones_.size()  )
+        {
+            for( size_t i=0; i<active_clones_.size(); i++ )
+                if( active_clones_[i] )
+                    ids.push_back(i);
+        }
+
+        for( size_t i=0; i<ids.size(); i++ )
+        {
+            cout << "ids : " << ids[i] << endl;
+        }
+
         RobotBasePtr orRobot = GetEnv()->GetRobot( robot_name );
         TrajectoryBasePtr ptraj = RaveCreateTrajectory(GetEnv(),"");
 
-        for( size_t i=0;i<trajs.size();i++)
+        for( size_t i=0; i<trajs.size(); i++ )
         {
-            CreateTraj( trajs[i], orRobot, ptraj );
+            CreateTraj( trajs[i], orRobot, ptraj, ids.size() > i ? ids[i] : i );
             delete trajs[i];
-            orRobot->GetController()->SetPath(ptraj);
 
-            while( !orRobot->GetController()->IsDone() ) // TODO remove or set from interface
-                usleep(100);
+            if( play_tajectories_ )
+            {
+                orRobot->GetController()->SetPath( ptraj );
+                while( !orRobot->GetController()->IsDone() ) // TODO remove or set from interface
+                    usleep(100);
+            }
         }
     }
 }
@@ -362,21 +424,20 @@ bool Move3dProblem::RunRRT( std::ostream& sout, std::istream& sinput )
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
+    move3d_or_api_clear_all_handles();
+
     if( !SetInitAndGoal( sout, sinput ) ){
         RAVELOG_INFO("Error in set init and goal\n");
         return false;
     }
 
-    move3d_or_api_add_handles();
-
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
 
-    // Start RRT
+    // RUN RRT
     std::vector<Move3D::Trajectory*> solutions = or_runDiffusion( robot->getInitPos(), robot->getGoalPos() );
 
-    PlayTrajectories( robot->getName(), solutions );
-
+    SaveAndPlayTrajectories( robot->getName(), solutions );
     RAVELOG_INFO("End RunRRT normally\n");
     return true;
 }
@@ -391,16 +452,15 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
         return false;
     }
 
-    move3d_or_api_add_handles();
+    move3d_or_api_clear_all_handles();
 
     Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getActiveRobot();
     cout << "robot name : " << robot->getName() << " . nb dofs : " << robot->getNumberOfDofs() << endl;
 
-    // Start Stomp
-    std::vector<Move3D::Trajectory*> solutions = or_runStomp( robot->getInitPos(), robot->getGoalPos() );
+    // RUN Stomp
+    std::vector<Move3D::Trajectory*> solutions = or_runStomp( robot->getInitPos(), robot->getGoalPos(), active_clones_ );
 
-    PlayTrajectories( robot->getName(), solutions );
-
+    SaveAndPlayTrajectories( robot->getName(), solutions );
     RAVELOG_INFO("End Stomp normally\n");
     return true;
 }

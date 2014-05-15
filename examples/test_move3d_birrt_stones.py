@@ -13,6 +13,7 @@ import pdb
 import sys
 from misc_transform import *
 
+
 class TwoDPlanner():
 
     def __init__( self ):
@@ -29,16 +30,22 @@ class TwoDPlanner():
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
 
-        
-    def run( self ) :
+        self.i = 0
+
+    def run(self):
 
         q_init = [20,50]
         q_goal = [200,700]
 
+        self.i += 1
+
         self.robot.SetDOFValues( q_init )
 
-        with self.orEnv :
-            self.prob.SendCommand('RunRRT jointgoals ' + SerializeConfig(q_goal) )  
+        with self.orEnv:
+
+            self.prob.SendCommand('RunRRT name ' + self.robot.GetName() +
+                                  ' jointinits ' + SerializeConfig(q_init) +
+                                  ' jointgoals ' + SerializeConfig(q_goal))
 
         print "Press return to exit."
         sys.stdin.readline()

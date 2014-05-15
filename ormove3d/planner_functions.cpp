@@ -425,7 +425,7 @@ std::vector<Move3D::Trajectory*> or_runDiffusion( Move3D::confPtr_t q_init, Move
     return solutions;
 }
 
-std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal  )
+std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::confPtr_t q_goal, std::vector<bool> active_clones  )
 {
     cout << "Run Stomp" << endl;
 
@@ -452,8 +452,11 @@ std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::
     {
         cout << "RUN STOMP MULTI-THREAD" << endl;
         robots.clear();
-        for( int i=0;i<10;i++) // Warning: only authorize 10 clones
+        for( size_t i=0;i<10;i++) // Warning: only authorize 10 clones
         {
+            if( active_clones.size() > i ? !active_clones[i] : false )
+                continue;
+
             std::ostringstream convert;   // stream used for the conversion
             convert << i;      // insert the textual representation of 'Number' in the characters in the stream
             std::string name = robot->getName() + "_" + convert.str();
@@ -517,6 +520,8 @@ std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::
 
     // Uncomment for parallel stomps
     // pool.setRobotPool( 0, robots );
+
+    cout << "Return STOMP solutions" << endl;
 
     return solutions;
 }

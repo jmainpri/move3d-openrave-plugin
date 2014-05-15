@@ -16,7 +16,7 @@ from misc_transform import *
 
 class TwoDPlanner():
 
-    def __init__( self ):
+    def __init__(self):
 
         self.orEnv = Environment()
         self.orEnv.SetViewer('qtcoin')
@@ -39,7 +39,11 @@ class TwoDPlanner():
         collisionChecker = RaveCreateCollisionChecker( self.orEnv,'VoxelColChecker')
         collisionChecker.SendCommand('SetDimension extent 500 800 30 voxelsize 5')
         collisionChecker.SendCommand('Initialize')
-        self.orEnv.SetCollisionChecker( collisionChecker )
+        collisionChecker.SendCommand('SetDrawing on')
+        self.orEnv.SetCollisionChecker(collisionChecker)
+
+        # init trajectory
+        self.trajectory = RaveCreateTrajectory(self.orEnv, "")
 
         self.SetCamera() 
 
@@ -54,15 +58,20 @@ class TwoDPlanner():
 
         self.collChecker = self.orEnv.GetCollisionChecker()
 
-    def run( self ) :
+    def run(self):
 
-        q_init = [20,50]
-        q_goal = [200,700]
-
-        self.robot.SetDOFValues( array(q_init) )
+        q_init = [20, 50]
+        q_goal = [200, 700]
             
-        with self.robot :
-            self.prob.SendCommand('RunStomp jointgoals ' + SerializeConfig(q_goal) )
+        with self.robot:
+
+            self.prob.SendCommand('RunStomp name ' + self.robot.GetName() +
+                                  ' jointgoals ' + SerializeConfig(q_goal) +
+                                  ' jointinits ' + SerializeConfig(q_init))
+
+        self.trajectory.deserialize(open("traj_0.txt", 'r').read())
+        self.robot.GetController().SetPath(self.trajectory)
+        self.robot.WaitForController(0)
 
         print "Press return to run"
         sys.stdin.readline()
@@ -83,5 +92,5 @@ if __name__ == "__main__":
     print "START OPENRAVE"
     planner = TwoDPlanner()
  
-    while True :
+    while True:
         planner.run()

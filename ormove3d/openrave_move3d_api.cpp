@@ -54,7 +54,10 @@ void move3d_or_api_add_handles()
 
 void move3d_or_api_clear_all_handles()
 {
-    graphptr_.clear();
+    for( size_t i=0;i<graphptr_.size(); i++ )
+    {
+        graphptr_[i].clear();
+    }
 }
 
 // ****************************************************************************************************
@@ -374,10 +377,10 @@ void* move3d_joint_constructor( Move3D::Joint* J, void* jntPt, std::string& name
 
 Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
 {
-    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
 
 //    For Puck (TODO FIX)
-//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
+    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
 
     Eigen::Vector3d v;
     v(0) = p[0];
@@ -613,10 +616,16 @@ bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd&
 
 void move3d_draw_clear(Move3D::Robot* R)
 {
-    int lastChar = *R->getName().rbegin() - 48;
-    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
-        lastChar = 0;
-    graphptr_[lastChar].clear();
+    if( !or_env_clones_.empty() )
+    {
+        int lastChar = *R->getName().rbegin() - 48;
+        if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+            lastChar = 0;
+        graphptr_[lastChar].clear();
+    }
+    else{
+        graphptr_[0].clear();
+    }
 }
 
 void move3d_draw_sphere_fct( double x, double y, double z, double radius, Move3D::Robot* R )
@@ -630,13 +639,20 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius, Move3D
     vcolors.push_back(0);
     vcolors.push_back(1);
 
-    int lastChar = *R->getName().rbegin() - 48;
-    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
-        lastChar = 0;
+    if( !or_env_clones_.empty() )
     {
-        OpenRAVE::EnvironmentMutex::scoped_lock lock(or_env_->GetMutex());
+        int lastChar = *R->getName().rbegin() - 48;
+        if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+            lastChar = 0;
+        {
+            OpenRAVE::EnvironmentMutex::scoped_lock lock(or_env_->GetMutex());
+            OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
+            graphptr_[lastChar].push_back( fig );
+        }
+    }
+    else{
         OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
-        graphptr_[lastChar].push_back( fig );
+        graphptr_[0].push_back( fig );
     }
 
 //    cout << "draw on thread : " << lastChar << endl;
@@ -667,15 +683,25 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
         colors[2] = color_vect[2];
     }
 
-    int lastChar = *R->getName().rbegin() - 48;
-    if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
-        lastChar = 0;
+    if( !or_env_clones_.empty() )
     {
-        OpenRAVE::EnvironmentMutex::scoped_lock lock(or_env_->GetMutex());
+        int lastChar = *R->getName().rbegin() - 48;
+        if( lastChar < 0 || lastChar >= int(or_env_clones_.size()) )
+            lastChar = 0;
+        {
+            OpenRAVE::EnvironmentMutex::scoped_lock lock(or_env_->GetMutex());
+            OpenRAVE::GraphHandlePtr fig = or_env_->drawlinelist( ppoints, nb_points, 3*sizeof(float), 3.0, colors );
+            delete ppoints;
+            graphptr_[lastChar].push_back( fig );
+        }
+    }
+    else {
         OpenRAVE::GraphHandlePtr fig = or_env_->drawlinelist( ppoints, nb_points, 3*sizeof(float), 3.0, colors );
         delete ppoints;
-        graphptr_[lastChar].push_back( fig );
+        graphptr_[0].push_back( fig );
     }
+
+
 
 //    cout << "draw on thread : " << lastChar << endl;
 
