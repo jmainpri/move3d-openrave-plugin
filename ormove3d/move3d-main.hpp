@@ -35,12 +35,17 @@ private:
     void SaveAndPlayTrajectories( std::string robot_name, const std::vector<Move3D::Trajectory*>& trajs );
     bool CloneRobot( std::ostream& sout, std::istream& sinput );
 
+    bool InitHumanPrediction( std::ostream& sout, std::istream& sinput );
+    bool VoxelPrediction( std::ostream& sout, std::istream& sinput );
+
     std::vector<dReal> goals_; // Goal configuration
     std::vector<dReal> inits_; // Init configuration
     std::vector<EnvironmentBasePtr> envclones_; // Environment clones
     std::vector<bool> active_clones_; // Active clones for planning
     bool play_tajectories_; // Play trajectories after execution
     std::string current_directory_; // Current directory where the plugin is executed (used for trajecotry storing)
+
+    bool init_human_prediction_; // set to true when the module is running
 
     // String converter
     template <class T>

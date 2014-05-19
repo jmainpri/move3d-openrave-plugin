@@ -12,6 +12,8 @@
 
 #define UNIX
 
+#include <libmove3d/planners/hri_costspace/gestures/HRICS_human_prediction_simulator.hpp>
+
 #include <Move3D-Qt-Gui/src/qtMainInterface/settings.hpp>
 #include <Move3D-Qt-Gui/src/planner_handler.hpp>
 
@@ -48,8 +50,13 @@ Move3dProblem::Move3dProblem(EnvironmentBasePtr penv) : ProblemInstance(penv)
     RegisterCommand("setinitandgoal",boost::bind(&Move3dProblem::SetInitAndGoal,this,_1,_2),"returns true if ok");
     RegisterCommand("setplaytrajectories",boost::bind(&Move3dProblem::SetPlayTrajectories,this,_1,_2),"returns true if ok");
 
+    RegisterCommand("inithumanprediction",boost::bind(&Move3dProblem::InitHumanPrediction,this,_1,_2),"returns true if ok");
+    RegisterCommand("voxelprediction",boost::bind(&Move3dProblem::VoxelPrediction,this,_1,_2),"returns true if ok");
+
     current_directory_ = "";
     play_tajectories_ = false;
+
+    init_human_prediction_ = false;
 
     boost::filesystem::path full_path( boost::filesystem::current_path() );
     std::cout << "Current path is : " << full_path << std::endl;
@@ -462,6 +469,23 @@ bool Move3dProblem::RunStomp( std::ostream& sout, std::istream& sinput )
 
     SaveAndPlayTrajectories( robot->getName(), solutions );
     RAVELOG_INFO("End Stomp normally\n");
+    return true;
+}
+
+bool Move3dProblem::InitHumanPrediction( std::ostream& sout, std::istream& sinput )
+{
+    HRICS_initOccupancyPredictionFramework( "ABBIE" , "HERAKLES_HUMAN" );
+    return true;
+}
+
+bool Move3dProblem::VoxelPrediction( std::ostream& sout, std::istream& sinput )
+{
+    if( global_humanPredictionSimulator == NULL )
+    {
+        cout << "global_humanPredictionSimulator == NULL" << endl;
+        return false;
+    }
+    global_humanPredictionSimulator->runVoxelOccupancy();
     return true;
 }
 

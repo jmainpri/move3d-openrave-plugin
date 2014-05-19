@@ -377,10 +377,10 @@ void* move3d_joint_constructor( Move3D::Joint* J, void* jntPt, std::string& name
 
 Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
 {
-//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
 
 //    For Puck (TODO FIX)
-    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
+//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
 
     Eigen::Vector3d v;
     v(0) = p[0];
@@ -562,7 +562,7 @@ int move3d_get_nb_collision_points(Move3D::Robot* R)
 
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
 
-    ( lastChar < 0 || lastChar >= int(or_env_clones_.size()) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( orRobot, report );
+    ((or_env_clones_.empty() || ( lastChar < 0 || lastChar >= int(or_env_clones_.size()))) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( orRobot, report );
 
     cout << "contacts size : " << report->contacts.size() << endl;
 
@@ -576,9 +576,10 @@ bool move3d_get_config_collision_cost( Move3D::Robot* R, int i, Eigen::MatrixXd&
     OpenRAVE::RobotBasePtr robot = OpenRAVE::RobotBasePtr( static_cast<OpenRAVE::RobotBase*>(R->getRobotStruct()), move3d_robot_dealocate_void );
     OpenRAVE::CollisionReportPtr report( new OpenRAVE::CollisionReport() );
 
+    // Depending in the name of the robot uses
     int lastChar = *R->getName().rbegin() - 48; // lastChar, only works until 10
 //    cout << "lastChar : " << lastChar << " , "  << *R->getName().rbegin() << endl;
-    bool in_collision = ( lastChar < 0 || lastChar >= int(or_env_clones_.size()) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( robot, report );
+    bool in_collision = ((or_env_clones_.empty() || ( lastChar < 0 || lastChar >= int(or_env_clones_.size()))) ? or_env_ : or_env_clones_[lastChar])->CheckCollision( robot, report );
 
     Eigen::Vector3d p;
 
@@ -628,16 +629,17 @@ void move3d_draw_clear(Move3D::Robot* R)
     }
 }
 
-void move3d_draw_sphere_fct( double x, double y, double z, double radius, Move3D::Robot* R )
+void move3d_draw_sphere_fct( double x, double y, double z, double radius, double* color_vect, Move3D::Robot* R )
 {
     std::vector<OpenRAVE::RaveVector<float> > vpoints;
     OpenRAVE::RaveVector<float> pnt(x,y,z);
     vpoints.push_back(pnt);
 
     std::vector<float> vcolors;
-    vcolors.push_back(0);
-    vcolors.push_back(0);
-    vcolors.push_back(1);
+    vcolors.push_back(color_vect[0]);
+    vcolors.push_back(color_vect[1]);
+    vcolors.push_back(color_vect[2]);
+    vcolors.push_back(color_vect[3]);
 
     if( !or_env_clones_.empty() )
     {
@@ -646,12 +648,12 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius, Move3D
             lastChar = 0;
         {
             OpenRAVE::EnvironmentMutex::scoped_lock lock(or_env_->GetMutex());
-            OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
+            OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), radius, &vcolors[0], 1 );
             graphptr_[lastChar].push_back( fig );
         }
     }
     else{
-        OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), 10, &vcolors[0], 1 );
+        OpenRAVE::GraphHandlePtr fig = or_env_->plot3( &vpoints[0].x, vpoints.size(), sizeof(vpoints[0]), radius, &vcolors[0], 1 );
         graphptr_[0].push_back( fig );
     }
 
@@ -789,7 +791,7 @@ void move3d_set_or_api_collision_space()
 void move3d_set_or_api_functions_draw()
 {
     move3d_or_api_add_handles();
-    move3d_set_fct_draw_sphere( boost::bind( move3d_draw_sphere_fct, _1, _2, _3, _4, _5 ) );
+    move3d_set_fct_draw_sphere( boost::bind( move3d_draw_sphere_fct, _1, _2, _3, _4, _5, _6 ) );
     move3d_set_fct_draw_one_line( boost::bind( move3d_draw_one_line_fct, _1, _2, _3, _4, _5, _6, _7, _8, _9 ) );
     move3d_set_fct_draw_clear_handles( boost::bind( move3d_draw_clear, _1 ) );
 }
