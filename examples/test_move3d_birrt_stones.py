@@ -12,11 +12,13 @@ from numpy import *
 import pdb
 import sys
 from misc_transform import *
-
+import os
 
 class TwoDPlanner():
 
     def __init__( self ):
+
+        home_move3d = os.environ['HOME_MOVE3D']
 
         self.orEnv = Environment()
         self.orEnv.SetViewer('qtcoin')
@@ -28,7 +30,7 @@ class TwoDPlanner():
         self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
         self.orEnv.AddModule( self.prob, args='' )        
         self.prob.SendCommand('InitMove3dEnv')
-        self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
+        self.prob.SendCommand('LoadConfigFile ' + home_move3d + '../move3d-launch/parameters/params_stones')
 
         self.i = 0
 
