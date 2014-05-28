@@ -31,6 +31,7 @@ static std::vector<OpenRAVE::EnvironmentBasePtr> or_env_clones_;
 static std::vector< std::vector< boost::shared_ptr<void> > > graphptr_;
 static std::vector< std::pair< std::string, std::pair<Move3D::confPtr_t, Move3D::confPtr_t> > > configs_;
 static Move3D::Robot* active_robot_;
+static bool robot_is_puck_ = false;
 
 void move3d_set_or_api_environment_pointer( OpenRAVE::EnvironmentBasePtr env_ptr )
 {
@@ -58,6 +59,11 @@ void move3d_or_api_clear_all_handles()
     {
         graphptr_[i].clear();
     }
+}
+
+void move3d_or_set_robot_is_puck(bool is_puck)
+{
+    robot_is_puck_ = is_puck;
 }
 
 // ****************************************************************************************************
@@ -377,10 +383,17 @@ void* move3d_joint_constructor( Move3D::Joint* J, void* jntPt, std::string& name
 
 Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
 {
-    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+    OpenRAVE::Vector p;
 
-//    For Puck (TODO FIX)
-//    OpenRAVE::Vector p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
+    // For Puck (TODO FIX)
+    if( !robot_is_puck_ )
+    {
+        p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+    }
+    else
+    {
+        p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
+    }
 
     Eigen::Vector3d v;
     v(0) = p[0];
@@ -702,8 +715,6 @@ void move3d_draw_one_line_fct( double x1, double y1, double z1, double x2, doubl
         delete ppoints;
         graphptr_[0].push_back( fig );
     }
-
-
 
 //    cout << "draw on thread : " << lastChar << endl;
 

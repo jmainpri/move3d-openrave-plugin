@@ -8,6 +8,7 @@ void move3d_set_or_api_environment_clones_pointer( std::vector<OpenRAVE::Environ
 void move3d_or_api_environment_clones_clear();
 void move3d_or_api_add_handles();
 void move3d_or_api_clear_all_handles();
+void move3d_or_set_robot_is_puck(bool is_puck);
 
 void move3d_set_or_api_scene();
 void move3d_set_or_api_functions_configuration();

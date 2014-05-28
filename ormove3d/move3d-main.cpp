@@ -92,6 +92,7 @@ bool Move3dProblem::InitMove3dEnv()
     init_all_draw_functions_dummy();
 
     Move3D::global_Project = new Move3D::Project(new Move3D::Scene( GetEnv().get() ));
+
     return true;
 }
 
@@ -504,6 +505,15 @@ int Move3dProblem::main(const std::string& cmd)
     cout << "------------------------" << endl;
     cout << __PRETTY_FUNCTION__ << endl;
 
+    if( cmd == "run_test_0" )
+    {
+        std::string file( "../ormodels/stones.env.xml" );
+        GetEnv()->Load( file );
+        InitMove3dEnv();
+        std::istringstream is( "../parameter_files/stomp_stones" );
+        LoadConfigFile( is );
+    }
+
     if( cmd == "run_test_1" )
     {
         std::string file( "../ormodels/stones.env.xml" );
@@ -512,6 +522,10 @@ int Move3dProblem::main(const std::string& cmd)
         std::istringstream is( "../parameter_files/stomp_stones" );
         LoadConfigFile( is );
         // RunStomp();
+
+        std::ostringstream out;
+        std::istringstream in( "name Puck jointinits 2 20 50 jointgoals 2 200 700" );
+        RunRRT( out, in );
     }
 
     if( cmd == "run_test_2" )

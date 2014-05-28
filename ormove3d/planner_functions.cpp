@@ -98,13 +98,7 @@ Move3D::Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes,
             traj->resetCostComputed();
             traj->costStatistics( traj_statistics );
 
-            cout << "--- stats on traj ---" << endl;
-            cout << " length = " << traj_statistics.length << endl;
-            cout << " max = " << traj_statistics.max << endl;
-            cout << " average = " << traj_statistics.average << endl;
-            cout << " integral = " << traj_statistics.integral << endl;
-            cout << " mecha_work = " << traj_statistics.mecha_work << endl;
-            cout << "---------------------" << endl;
+            traj_statistics.print();
 
             // Compute traj cost
             rrt_statistics.cost = traj->cost();
@@ -300,13 +294,7 @@ void move3d_smoothing_function( Move3D::Trajectory& traj, int nbSteps, double ma
         {
             optimTrj.costStatistics( traj_statistics );
 
-            cout << "--- stats on traj ---" << endl;
-            cout << " length = " << traj_statistics.length << endl;
-            cout << " max = " << traj_statistics.max << endl;
-            cout << " average = " << traj_statistics.average << endl;
-            cout << " integral = " << traj_statistics.integral << endl;
-            cout << " mecha_work = " << traj_statistics.mecha_work << endl;
-            cout << "---------------------" << endl;
+            traj_statistics.print();
         }
 
         traj = Move3D::Trajectory(optimTrj);
@@ -327,21 +315,15 @@ void move3d_smoothing_function( Move3D::Trajectory& traj, int nbSteps, double ma
         {
             traj.costStatistics( traj_statistics );
 
-            cout << "--- stats on traj ---" << endl;
-            cout << " length = " << traj_statistics.length << endl;
-            cout << " max = " << traj_statistics.max << endl;
-            cout << " average = " << traj_statistics.average << endl;
-            cout << " integral = " << traj_statistics.integral << endl;
-            cout << " mecha_work = " << traj_statistics.mecha_work << endl;
-            cout << "---------------------" << endl;
+            traj_statistics.print();
         }
     }
 }
 
 Move3D::Trajectory* move3d_run_rrt( Move3D::Robot* rob, Move3D::confPtr_t q_source, Move3D::confPtr_t q_target )
 {
-    rob->setInitPos( *q_source );
-    rob->setGoalPos( *q_target );
+    Move3D::LocalPath straight_line( q_source, q_target );
+    cout << "straigpath param max : " << straight_line.getParamMax() << endl;
 
     Move3D::Trajectory* path = move3d_planner_function( rob, q_source, q_target );
 
