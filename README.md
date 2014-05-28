@@ -10,8 +10,7 @@ Dependencies:
 Install:
 
     cd ormove3d
-    mkdir build
-    cd build
+    mkdir build && cd build
     cmake ..
     make install
     
