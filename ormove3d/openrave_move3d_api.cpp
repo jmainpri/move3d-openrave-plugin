@@ -389,10 +389,12 @@ Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
     if( !robot_is_puck_ )
     {
         p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
+        cout << "anchor1 : " << p << endl;
     }
     else
     {
         p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
+        cout << "anchor2 : " << p << endl;
     }
 
     Eigen::Vector3d v;
@@ -647,6 +649,9 @@ void move3d_draw_sphere_fct( double x, double y, double z, double radius, double
     std::vector<OpenRAVE::RaveVector<float> > vpoints;
     OpenRAVE::RaveVector<float> pnt(x,y,z);
     vpoints.push_back(pnt);
+
+    radius *= 1000;
+    cout << "raduis : " << radius << endl;
 
     std::vector<float> vcolors;
     vcolors.push_back(color_vect[0]);

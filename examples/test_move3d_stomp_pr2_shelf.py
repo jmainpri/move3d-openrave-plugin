@@ -8,10 +8,13 @@ from openravepy import *
 from numpy import *
 from misc_transform import *
 
+import os
 import time
 import sys
 
 if __name__ == "__main__":
+
+    home_move3d = os.environ['HOME_MOVE3D']
       
     # load the environment if it is not already loaded
     try:
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     orEnv.AddModule(prob, args='')
 
     prob.SendCommand('InitMove3dEnv')
-    prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_pr2_shelf')
+    prob.SendCommand('LoadConfigFile ' + home_move3d + '/../move3d-launch/parameters/params_pr2_shelf')
     prob.SendCommand('SetParameter jntToDraw 34')
     prob.SendCommand('SetParameter stompDrawIteration 1')
 
