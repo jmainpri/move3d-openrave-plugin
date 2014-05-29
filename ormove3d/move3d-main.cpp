@@ -93,6 +93,13 @@ bool Move3dProblem::InitMove3dEnv()
 
     Move3D::global_Project = new Move3D::Project(new Move3D::Scene( GetEnv().get() ));
 
+    cout << "Move3D::global_Project->getActiveScene()->getActiveRobot()->getName() : " << Move3D::global_Project->getActiveScene()->getActiveRobot()->getName() << endl;
+
+    if( Move3D::global_Project->getActiveScene()->getActiveRobot()->getName() == "Puck" )
+    {
+        move3d_or_set_robot_is_puck(true);
+    }
+
     return true;
 }
 
