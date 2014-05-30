@@ -11,10 +11,13 @@ from openravepy import *
 from numpy import *
 import pdb
 import sys
+import os
 
 class TwoDPlanner():
 
     def __init__( self ):
+
+        home_move3d = os.environ['HOME_MOVE3D']
 
         self.orEnv = Environment()
         self.orEnv.SetViewer('qtcoin')
@@ -31,7 +34,7 @@ class TwoDPlanner():
         self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
 
         self.prob.SendCommand('InitMove3dEnv')
-        self.prob.SendCommand('LoadConfigFile /home/jmainpri/Dropbox/move3d/move3d-launch/parameters/params_stones')
+        self.prob.SendCommand('LoadConfigFile ' + home_move3d + '../move3d-launch/parameters/params_stones')
 
     def run( self ) :
 

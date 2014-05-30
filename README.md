@@ -20,6 +20,5 @@ Set up your enviroment:
     
 Run:
     
-    cd examples
-    python test_move3d_birrt_stones.py
+    cd examples && python test_move3d_birrt_stones.py
     
