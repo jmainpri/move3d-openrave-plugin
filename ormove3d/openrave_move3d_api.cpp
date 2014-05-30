@@ -389,12 +389,10 @@ Eigen::Vector3d move3d_joint_get_vector_pos( const Move3D::Joint* J )
     if( !robot_is_puck_ )
     {
         p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetAnchor();
-        cout << "anchor1 : " << p << endl;
     }
     else
     {
         p = static_cast<OpenRAVE::KinBody::Joint*>( J->getJointStruct() )->GetHierarchyChildLink()->GetTransform().trans;
-        cout << "anchor2 : " << p << endl;
     }
 
     Eigen::Vector3d v;

@@ -42,7 +42,7 @@
 <Body>fake1</Body>
 <axis>1 0 0</axis>
 <limits>-50.0 450.0</limits>
-<maxvel>30</maxvel>
+<maxvel>1000</maxvel>
 <resolution>1</resolution>
 </Joint>
 
@@ -53,7 +53,7 @@
 <Body>End</Body>
 <axis>0 1 0</axis>
 <limits>0 800.0</limits>
-<maxvel>30</maxvel>
+<maxvel>1000</maxvel>
 <resolution>1</resolution>
 </Joint>
 

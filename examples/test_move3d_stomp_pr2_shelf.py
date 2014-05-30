@@ -53,6 +53,10 @@ if __name__ == "__main__":
     robot = orEnv.GetRobots()[0]
     robot.SetTransform(T)
 
+    # Set left arm configuration
+    indices = robot.GetManipulator("leftarm").GetArmIndices()
+    robot.SetDOFValues( [2.0,0.5,0.5,-1.6,1.5,-1,0], indices )
+
     # ---------------------------------------------------------------
     # Setup voxel collision checker
     indices_vox = [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]
@@ -89,8 +93,6 @@ if __name__ == "__main__":
 
     # ---------------------------------------------------------------
     # Set up motion planner
-    indices = robot.GetManipulator("leftarm").GetArmIndices()
-    robot.SetDOFValues( [2.0,0.5,0.5,-1.6,1.5,-1,0], indices )
 
     # Set active manipulator, Planning dofs
     indices = robot.GetManipulator("rightarm").GetArmIndices()
@@ -109,6 +111,8 @@ if __name__ == "__main__":
     prob.SendCommand('LoadConfigFile ' + home_move3d + '/../move3d-launch/parameters/params_pr2_shelf')
     prob.SendCommand('SetParameter jntToDraw 34')
     prob.SendCommand('SetParameter stompDrawIteration 1')
+    prob.SendCommand('SetParameter trajStompWithIterLimit 1')
+    prob.SendCommand('SetParameter stompMaxIteration 150')
 
     robot.SetActiveDOFs(indices)
 
@@ -129,3 +133,4 @@ if __name__ == "__main__":
         sys.stdin.readline()
 
         print orEnv.GetViewer().GetCameraTransform()
+

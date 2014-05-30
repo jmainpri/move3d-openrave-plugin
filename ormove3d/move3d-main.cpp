@@ -359,9 +359,15 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
     std::vector<dReal> vtraj_data;
     const std::vector<int>& indices = robot->GetActiveDOFIndices();
 
-    for( int j=0; j<traj->getNbOfViaPoints(); j++)
+    double t = 0.0;
+    double t_max = traj->getRangeMax();
+    int n_step = 100; // traj->getNbOfViaPoints();
+    double step = t_max / n_step;
+
+    for( int j=0; j<n_step /*traj->getNbOfViaPoints()*/; j++)
     {
-        Move3D::confPtr_t q = (*traj)[j];
+//        Move3D::confPtr_t q = (*traj)[j];
+        Move3D::confPtr_t q = traj->configAtParam( t += step );
 
         for( size_t i=0; i<indices.size(); i++) // Positions
         {
@@ -378,7 +384,7 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
 
     ptraj->Insert( ptraj->GetNumWaypoints(), vtraj_data, confspec );
 
-    if( int( ptraj->GetNumWaypoints() ) != traj->getNbOfViaPoints() )
+    if( int( ptraj->GetNumWaypoints() ) != n_step  )
     {
         RAVELOG_INFO("Error, trajectory timer changed the number of points: %d before vs. %d after\n", traj->getNbOfViaPoints(), ptraj->GetNumWaypoints() );
         return false;

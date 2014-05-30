@@ -20,36 +20,36 @@ class TwoDPlanner():
 
         home_move3d = os.environ['HOME_MOVE3D']
 
-        self.orEnv = Environment()
-        self.orEnv.SetViewer('qtcoin')
-        self.orEnv.GetViewer().EnvironmentSync()
-        self.orEnv.Load( '../ormodels/stones.env.xml' )
+        self.env = Environment()
+        self.env.SetViewer('qtcoin')
+        self.env.GetViewer().EnvironmentSync()
+        self.env.Load( '../ormodels/stones.env.xml' )
 
-        self.robot = self.orEnv.GetRobots()[0]
+        self.robot = self.env.GetRobot('Puck')
 
-        self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
-        self.orEnv.AddModule( self.prob, args='' )        
+        self.prob = RaveCreateModule( self.env, 'Move3d' )
+        self.env.AddModule( self.prob, args='' )        
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile ' + home_move3d + '/../move3d-launch/parameters/params_stones')
-        self.prob.SendCommand('SetParameter drawScaleFactorNodeSphere 300')
-
-        self.i = 0
+        self.prob.SendCommand('SetParameter drawScaleFactorNodeSphere 0.3')
 
     def run(self):
 
         q_init = [20, 50]
         q_goal = [200, 700]
 
-        self.i += 1
-
         self.robot.SetDOFValues( q_init )
 
-        with self.orEnv:
+        with self.env:
 
             self.prob.SendCommand('RunRRT name ' + self.robot.GetName() +
                                   ' jointinits ' + SerializeConfig(q_init) +
                                   ' jointgoals ' + SerializeConfig(q_goal))
 
+        trajectory = RaveCreateTrajectory(self.env, "")
+        trajectory.deserialize(open("traj_0.txt", 'r').read())
+        self.robot.GetController().SetPath(trajectory)
+        self.robot.WaitForController(0)
 
     def SetCamera(self):
         T_cam = ([[2.44603788e-01,   7.28857907e-01,  -6.39480366e-01, 7.34846558e+02],
@@ -57,7 +57,7 @@ class TwoDPlanner():
                   [-1.30067561e-01,  -6.28889392e-01,  -7.66538037e-01, 6.77975464e+02],
                   [0.00000000e+00,   0.00000000e+00,   0.00000000e+00, 1.00000000e+00]])
         # self.orEnv.GetViewer().GetCameraTransform()
-        self.orEnv.GetViewer().SetCamera( T_cam )
+        self.env.GetViewer().SetCamera( T_cam )
 
 if __name__ == "__main__":
 
