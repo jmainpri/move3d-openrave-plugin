@@ -31,6 +31,7 @@ class TwoDPlanner():
         self.orEnv.AddModule( self.prob, args='' )        
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile ' + home_move3d + '/../move3d-launch/parameters/params_stones')
+        self.prob.SendCommand('SetParameter drawScaleFactorNodeSphere 300')
 
         self.i = 0
 
@@ -49,8 +50,6 @@ class TwoDPlanner():
                                   ' jointinits ' + SerializeConfig(q_init) +
                                   ' jointgoals ' + SerializeConfig(q_goal))
 
-        print "Press return to exit."
-        sys.stdin.readline()
 
     def SetCamera(self):
         T_cam = ([[2.44603788e-01,   7.28857907e-01,  -6.39480366e-01, 7.34846558e+02],
@@ -68,3 +67,5 @@ if __name__ == "__main__":
 
     while True :
         planner.run()
+        print "Press return replan."
+        sys.stdin.readline()
