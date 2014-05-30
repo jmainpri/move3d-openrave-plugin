@@ -18,32 +18,32 @@ class TwoDPlanner():
 
     def __init__(self):
 
-        self.orEnv = Environment()
-        self.orEnv.SetViewer('qtcoin')
-        self.orEnv.GetViewer().EnvironmentSync()
-        self.orEnv.Load( '../ormodels/stones.env.xml' )
-        self.orEnv.SetDebugLevel(DebugLevel.Verbose)
+        self.env = Environment()
+        self.env.SetViewer('qtcoin')
+        self.env.GetViewer().EnvironmentSync()
+        self.env.Load( '../ormodels/stones.env.xml' )
+        self.env.SetDebugLevel(DebugLevel.Verbose)
 
-        self.prob = RaveCreateModule( self.orEnv, 'Move3d' )
-        self.orEnv.AddModule( self.prob, args='' )
+        self.prob = RaveCreateModule( self.env, 'Move3d' )
+        self.env.AddModule( self.prob, args='' )
 
         self.drawingHandles = []
-        self.drawingHandles.append( misc.DrawAxes( self.orEnv, eye(4), 30 ) ) 
+        self.drawingHandles.append( misc.DrawAxes( self.env, eye(4), 30 ) ) 
 
-        self.robot = self.orEnv.GetRobots()[0]    
+        self.robot = self.env.GetRobots()[0]    
 
         # Disable Box0 link
         self.robot.GetLink('Box0').Enable( False )
  
         # Init collision checker
-        collisionChecker = RaveCreateCollisionChecker( self.orEnv,'VoxelColChecker')
+        collisionChecker = RaveCreateCollisionChecker( self.env,'VoxelColChecker')
         collisionChecker.SendCommand('SetDimension extent 500 800 30 voxelsize 5')
         collisionChecker.SendCommand('Initialize')
         collisionChecker.SendCommand('SetDrawing on')
-        self.orEnv.SetCollisionChecker(collisionChecker)
+        self.env.SetCollisionChecker(collisionChecker)
 
         # init trajectory
-        self.trajectory = RaveCreateTrajectory(self.orEnv, "")
+        self.trajectory = RaveCreateTrajectory(self.env, "")
 
         self.SetCamera() 
 
@@ -55,13 +55,17 @@ class TwoDPlanner():
         self.prob.SendCommand('InitMove3dEnv')
         self.prob.SendCommand('LoadConfigFile ../parameter_files/stomp_stones')
         self.prob.SendCommand('SetParameter jntToDraw 1')
+        self.prob.SendCommand('SetParameter trajStompWithIterLimit 1')
+        self.prob.SendCommand('SetParameter stompMaxIteration 300')
 
-        self.collChecker = self.orEnv.GetCollisionChecker()
+        self.collChecker = self.env.GetCollisionChecker()
 
     def run(self):
 
         q_init = [20, 50]
         q_goal = [200, 700]
+
+        self.collChecker.SendCommand('SetDrawing off')
             
         with self.robot:
 
@@ -69,14 +73,8 @@ class TwoDPlanner():
                                   ' jointgoals ' + SerializeConfig(q_goal) +
                                   ' jointinits ' + SerializeConfig(q_init))
 
-        self.trajectory.deserialize(open("traj_0.txt", 'r').read())
-        self.robot.GetController().SetPath(self.trajectory)
-        self.robot.WaitForController(0)
 
-        print "Press return to run"
-        sys.stdin.readline()
-
-        print self.orEnv.GetViewer().GetCameraTransform()
+        print self.env.GetViewer().GetCameraTransform()
 
     def SetCamera(self):
 
@@ -85,7 +83,7 @@ class TwoDPlanner():
                   [ -2.83785562e-02,  -1.32813024e-01,  -9.90734757e-01,   7.22618408e+02],
                   [  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,  1.00000000e+00]])
  
-        self.orEnv.GetViewer().SetCamera( T_cam )
+        self.env.GetViewer().SetCamera( T_cam )
 
 if __name__ == "__main__":
 
@@ -93,4 +91,15 @@ if __name__ == "__main__":
     planner = TwoDPlanner()
  
     while True:
+        
         planner.run()
+
+        planner.collChecker.SendCommand('SetDrawing on')
+
+        planner.trajectory.deserialize(open("traj_0.txt", 'r').read())
+        planner.robot.GetController().SetPath(planner.trajectory)
+        planner.robot.WaitForController(0)
+
+        print "Press return to run"
+        sys.stdin.readline()
+

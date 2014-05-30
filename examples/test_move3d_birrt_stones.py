@@ -46,10 +46,7 @@ class TwoDPlanner():
                                   ' jointinits ' + SerializeConfig(q_init) +
                                   ' jointgoals ' + SerializeConfig(q_goal))
 
-        trajectory = RaveCreateTrajectory(self.env, "")
-        trajectory.deserialize(open("traj_0.txt", 'r').read())
-        self.robot.GetController().SetPath(trajectory)
-        self.robot.WaitForController(0)
+
 
     def SetCamera(self):
         T_cam = ([[2.44603788e-01,   7.28857907e-01,  -6.39480366e-01, 7.34846558e+02],
@@ -66,6 +63,14 @@ if __name__ == "__main__":
     planner.SetCamera()
 
     while True :
+
         planner.run()
+
+        trajectory = RaveCreateTrajectory(planner.env, "")
+        trajectory.deserialize(open("traj_0.txt", 'r').read())
+
+        planner.robot.GetController().SetPath(trajectory)
+        planner.robot.WaitForController(0)
+
         print "Press return replan."
         sys.stdin.readline()
