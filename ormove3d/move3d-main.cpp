@@ -352,7 +352,12 @@ bool Move3dProblem::CreateTraj( Move3D::Trajectory* traj, RobotBasePtr robot, Tr
     std::vector<dReal> vtraj_data;
     const std::vector<int>& indices = robot->GetActiveDOFIndices();
 
-    for( int j=0; j<traj->getNbOfViaPoints(); j++)
+    double t = 0.0;
+    double t_max = traj->getParamMax();
+    int n_step = 100; // traj->getNbOfViaPoints();
+    double step = t_max / n_step;
+
+    for( int j=0; j<n_step /*traj->getNbOfViaPoints()*/; j++)
     {
         Move3D::confPtr_t q = (*traj)[j];
 

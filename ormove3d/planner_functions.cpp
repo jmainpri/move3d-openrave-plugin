@@ -107,7 +107,7 @@ Move3D::Trajectory* move3d_extract_traj( bool is_traj_found, int nb_added_nodes,
         }
 
         cout << "nb of paths = " << traj->getNbOfPaths() << endl;
-        cout << "max param = " << traj->getRangeMax() << endl;
+        cout << "max param = " << traj->getParamMax() << endl;
 
         return traj;
     }
@@ -265,7 +265,7 @@ void move3d_smoothing_function( Move3D::Trajectory& traj, int nbSteps, double ma
         double optTime = 0.0;
 
         cout << "nb of paths = " << traj.getNbOfPaths() << endl;
-        cout << "range max = " << traj.getRangeMax() << endl;
+        cout << "range max = " << traj.getParamMax() << endl;
 
         Move3D::CostOptimization optimTrj( traj );
 
@@ -288,7 +288,7 @@ void move3d_smoothing_function( Move3D::Trajectory& traj, int nbSteps, double ma
 
         optimTrj.replaceP3dTraj();
         optimTrj.resetCostComputed();
-        cout << "optimTrj.getRangeMax() : " << optimTrj.getRangeMax()  << endl;
+        cout << "optimTrj.getRangeMax() : " << optimTrj.getParamMax()  << endl;
 
         if( PlanEnv->getBool(PlanParam::trajComputeCostAfterPlannif) )
         {
@@ -460,7 +460,7 @@ std::vector<Move3D::Trajectory*> or_runStomp( Move3D::confPtr_t q_init, Move3D::
             trajs.push_back( Move3D::Trajectory( robots[i] ) );
             trajs.back().push_back( robots[i]->getInitPos() );
             trajs.back().push_back( robots[i]->getGoalPos() );
-            cout << "Robot name : " << robots[i]->getName() << ", initial traj length : "  << trajs.back().getRangeMax() << endl;
+            cout << "Robot name : " << robots[i]->getName() << ", initial traj length : "  << trajs.back().getParamMax() << endl;
         }
     }
     else {
